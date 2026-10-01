@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport-fit=cover: Die App nutzt den ganzen iPhone-Bildschirm, auch neben Notch und Home-Balken -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Sagt dem Browser, dass die Seite Hell- und Dunkelmodus unterstützt -->
+  <meta name="color-scheme" content="light dark">
+  <title>Gym-Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Kopfzeile mit dem Titel der aktuellen Ansicht -->
+  <header class="app-header">
+    <h1 id="view-title">Training</h1>
+  </header>
+
+  <!-- Hauptbereich: Jede Ansicht ist ein eigener <section>-Block.
+       Es ist immer nur einer sichtbar, die anderen haben das Attribut "hidden". -->
+  <main class="app-main">
+    <section id="view-training" class="view">
+      <p class="placeholder">Hier startest du später dein Training.</p>
+    </section>
+
+    <section id="view-plaene" class="view" hidden>
+      <p class="placeholder">Hier erscheinen später die Trainingspläne.</p>
+    </section>
+
+    <section id="view-verlauf" class="view" hidden>
+      <p class="placeholder">Hier siehst du später deinen Fortschritt.</p>
+    </section>
+
+    <section id="view-daten" class="view" hidden>
+      <p class="placeholder">Hier kannst du später deine Daten sichern.</p>
+    </section>
+  </main>
+
+  <!-- Navigationsleiste unten: dort gut mit dem Daumen erreichbar -->
+  <nav class="tab-bar">
+    <a href="#training" class="tab" data-view="training">
+      <span class="tab-icon" aria-hidden="true">🏋️</span>
+      <span>Training</span>
+    </a>
+    <a href="#plaene" class="tab" data-view="plaene">
+      <span class="tab-icon" aria-hidden="true">📋</span>
+      <span>Pläne</span>
+    </a>
+    <a href="#verlauf" class="tab" data-view="verlauf">
+      <span class="tab-icon" aria-hidden="true">📈</span>
+      <span>Verlauf</span>
+    </a>
+    <a href="#daten" class="tab" data-view="daten">
+      <span class="tab-icon" aria-hidden="true">💾</span>
+      <span>Daten</span>
+    </a>
+  </nav>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
