@@ -28,6 +28,12 @@
   box-sizing: border-box; /* Breite inklusive Innenabstand berechnen, das ist intuitiver */
 }
 
+/* Elemente mit dem Attribut "hidden" immer verstecken, auch wenn eine
+   andere Regel ihnen z.B. "display: inline-block" gibt */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -106,4 +112,99 @@ body {
 .tab.active .tab-icon {
   filter: none;
   opacity: 1;
+}
+
+/* ===== Zurück-Link in der Kopfzeile ===== */
+.back-link {
+  display: inline-block;
+  /* Große Tipp-Fläche: mindestens 44px hoch (Apple-Empfehlung) */
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* ===== Texte ===== */
+.intro {
+  margin: 0 0 16px;
+  color: var(--text-muted);
+}
+
+.section-title {
+  margin: 24px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ===== Karten (z.B. eine Trainingsart) ===== */
+.card {
+  display: block;
+  margin-bottom: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Kurzes Feedback beim Antippen */
+.card-link:active {
+  opacity: 0.6;
+}
+
+.card-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.card-text {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Kleine "Etiketten" für die Namen der Einheiten */
+.chips {
+  display: flex;
+  flex-wrap: wrap; /* Bei Platzmangel in die nächste Zeile umbrechen */
+  gap: 6px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 999px; /* Ganz runde Enden */
+  background: var(--bg);
+  font-size: 14px;
+}
+
+/* ===== Listen (z.B. Einheiten eines Plans) ===== */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none; /* Keine Aufzählungspunkte */
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden; /* Ecken der ersten/letzten Zeile mit abrunden */
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Titel links, Info rechts */
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+}
+
+/* Trennlinie zwischen den Zeilen, aber nicht über der ersten */
+.list-row + .list-row {
+  border-top: 1px solid var(--border);
+}
+
+.list-meta {
+  font-size: 15px;
+  color: var(--text-muted);
 }
