@@ -21,7 +21,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Hosting später kostenlos über GitHub Pages (die PWA braucht HTTPS). Erkläre mir den Ablauf, wenn wir so weit sind.
 - Daten lokal im Browser speichern (localStorage oder IndexedDB, wähle die passende Variante und begründe sie). Kein Login, kein Server.
 - Den Speicher-Code in eine eigene Datei (`storage.js`) auslagern. Der Rest der App greift nur darüber auf Daten zu, damit sich die Speicherung später durch eine Cloud-Lösung ersetzen lässt.
-- Vorgeschlagene Struktur: `index.html`, `css/styles.css`, `js/app.js`, `js/storage.js`, `js/timer.js`, `js/charts.js`, `service-worker.js`.
+- Struktur: `index.html`, `css/styles.css`, `js/app.js` (Anzeige und Bedienung), `js/storage.js` (Daten), `js/timer.js` (Pausentimer), `js/charts.js` (Diagramme, Widgets, Streak), `js/progress.js` (Steigerungsvorschlag, Rekorde); später `service-worker.js`.
 
 ## Funktionen
 
@@ -144,6 +144,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] Wochen-Streak mit Wochenziel und Urlaubsmodus, Tab „Einstellungen“ mit aufklappbarer Monatsübersicht (Datenformat Version 3)
 - [x] 8. Verlauf pro Übung (Diagramm Gewicht/Volumen) und Startseite mit Widgets
 - [x] 9. Export und Import (Sicherung in iCloud Drive mit Erinnerung, siehe „Nächste Funktionen“ Punkt 1)
+- [x] Übungen bearbeiten, Notizen, Aufwärmsatz, Progressive Overload, Rekorde, Trainingsprotokoll, eigene Pläne (siehe „Nächste Funktionen“)
 - [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
@@ -154,7 +155,7 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 - Schutz deshalb: App als Home-Bildschirm-App installieren, dauerhaften Speicher anfordern und regelmäßige Sicherung als Datei in iCloud Drive (Erinnerung in der App, fester Dateiname `gym-tracker-backup.json`, wird beim Sichern ersetzt). Wiederherstellen über „Importieren“.
 - Die App soll mit meiner Freundin geteilt werden (Link zu GitHub Pages). Jede Person hat ihre eigenen, getrennten Daten auf ihrem iPhone.
 
-## Nächste Funktionen (beschlossen, in dieser Reihenfolge)
+## Nächste Funktionen (beschlossen; alle 8 umgesetzt)
 
 1. ✅ **Sicherung** (erledigt): Export aller Daten als Datei nach iCloud Drive (fester Name `gym-tracker-backup.json`, Teilen-Menü von iOS), Erinnerung nach 5 Trainings oder spätestens 1 Woche, Import zum Wiederherstellen. Anzeige „Letzte Sicherung vor X Tagen“ in den Einstellungen.
 2. ✅ **Übungen bearbeiten** (erledigt, Seite `#uebungen/<id>`): Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
@@ -169,7 +170,7 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
    Grundlage: Gewicht oder Wiederholungen steigern wirkt für Muskelaufbau etwa gleich (Plotkin et al. 2022); doppelte Progression kombiniert beides.
 6. ✅ **Rekorde** (erledigt): kompakt direkt auf der Übungsseite („🏆 Rekord: 102,5 kg × 5“), keine eigene Seite. Bester Satz = höchstes Gewicht, bei Gleichstand mehr Wiederholungen. Beim Abhaken mit neuem Rekord: Einblendung „Neuer Rekord!“ und Etikett „Rekord“ in der Liste. Pokal und Rekord-Etikett in Gold (Gold = Erfolge: Streak und Rekorde).
 7. ✅ **Trainingsprotokoll** (erledigt, Seite `#einstellungen/tag/<datum>`): In den Einstellungen im Kalender einen Trainingstag antippen → Übersicht dieses Trainings (Dauer, Übungen, Sätze, bewegte kg, Rekorde) und die Übungen mit Sätzen. Dort Werte ändern, Übungen entfernen, Training löschen. Die Seite bleibt übersichtlich: im Normalzustand eine Zeile pro Übung, Eingabefelder erst im Modus „Bearbeiten“. Beendete Trainings speichern zusätzlich `planName`/`unitName`, damit das Protokoll auch nach Umbenennen oder Löschen lesbar bleibt. Aufgeklappte Monate bleiben beim Zurückkommen offen.
-8. **Eigene Pläne**: In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen.
+8. ✅ **Eigene Pläne** (erledigt): In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen. Namen werden über das eingebaute Eingabefenster (`prompt`) abgefragt. Gelöschte Pläne/Trainingstage lassen gespeicherte Trainings unberührt.
 
 Bewusst NICHT umsetzen (vorerst): App online stellen (Schritt 10, später), Übungen archivieren statt löschen (ich lösche keine Übungen), Bildschirm im Training anlassen, Sätze einzeln abhaken bzw. Timer automatisch starten.
 

@@ -2473,3 +2473,18 @@ a.cal-day:active {
 .danger-text {
   color: var(--red);
 }
+
+/* ===== Pläne verwalten ===== */
+/* "Umbenennen" und "Löschen" als Text-Knöpfe nebeneinander unter dem Inhalt */
+.manage-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.manage-buttons .text-button {
+  width: auto;
+  margin: 0;
+  padding: 0 12px;
+}

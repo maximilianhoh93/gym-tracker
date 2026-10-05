@@ -129,6 +129,15 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Nach einem Namen fragen (eingebautes Eingabefenster). Gibt den Namen ohne
+// Leerzeichen am Rand zurück, oder null bei "Abbrechen" bzw. leerer Eingabe.
+function askName(question, current) {
+  const answer = prompt(question, current);
+  if (answer === null) return null;
+  const name = answer.trim().slice(0, 40); // höchstens 40 Zeichen
+  return name || null;
+}
+
 // "Keine Übungen", "1 Übung", "3 Übungen"
 function exerciseCountText(count) {
   if (count === 0) return "Noch keine Übungen";
@@ -247,8 +256,11 @@ function renderStart(unitId, exerciseId) {
     ${renderBackupBanner()}
       ${renderWidgets()}
     <h2 class="section-title">Training starten · ${escapeHtml(plan.name)}</h2>
-    <ul class="card-list">${cards}</ul>
-    <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>
+    ${plan.units.length === 0
+      ? `<p class="placeholder">Dieser Plan hat noch keine Trainingstage.</p>
+         <a class="button-secondary" href="#plaene/${plan.id}">Trainingstage hinzufügen</a>`
+      : `<ul class="card-list">${cards}</ul>
+         <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>`}
   `;
 }
 
@@ -853,6 +865,7 @@ RestTimer.onChange = () => {
 // (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
 // Wurde noch nie trainiert, ist es die erste.
 function nextUnitId(plan) {
+  if (plan.units.length === 0) return null; // Plan ohne Trainingstage
   let lastIndex = -1;
   let lastDate = null;
   plan.units.forEach((unit, index) => {
@@ -947,8 +960,9 @@ function renderPlanList(plans) {
     .join("");
 
   return `
-    <p class="intro">Wähle eine Trainingsart, um ihre Einheiten zu sehen und sie zu aktivieren.</p>
+    <p class="intro">Wähle eine Trainingsart, um ihre Trainingstage zu sehen und sie zu aktivieren.</p>
     ${cards}
+    <button class="button-secondary" data-action="add-plan">+ Eigener Plan</button>
   `;
 }
 
@@ -979,13 +993,23 @@ function renderPlanDetail(plan) {
          Als aktiven Plan wählen
        </button>`;
 
+  const list =
+    plan.units.length === 0
+      ? `<p class="placeholder">Noch keine Trainingstage. Füge unten den ersten hinzu, z.B. „Oberkörper“.</p>`
+      : `<ul class="card-list sortable" data-sort="plan-units">${cards}</ul>
+         ${plan.units.length > 1 ? `<p class="hint">Zum Sortieren einen Trainingstag am ≡ ziehen.</p>` : ""}`;
+
   // data-sort sagt dem Drag-and-Drop-Code, WAS hier sortiert wird
   return `
     <p class="intro">${escapeHtml(plan.description)}</p>
-    ${activeControl}
-    <h2 class="section-title">Einheiten</h2>
-    <ul class="card-list sortable" data-sort="plan-units">${cards}</ul>
-    <p class="hint">Zum Sortieren eine Einheit am ≡ ziehen.</p>
+    ${plan.units.length > 0 ? activeControl : ""}
+    <h2 class="section-title">Trainingstage</h2>
+    ${list}
+    <button class="button-secondary" data-action="add-unit">+ Trainingstag hinzufügen</button>
+    <div class="manage-buttons">
+      <button class="text-button" data-action="rename-plan">Plan umbenennen</button>
+      <button class="text-button danger-text" data-action="delete-plan">Plan löschen</button>
+    </div>
   `;
 }
 
@@ -1026,6 +1050,10 @@ function renderUnitDetail(plan, unit) {
     ${list}
     ${hint}
     <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">+ Übungen auswählen</a>
+    <div class="manage-buttons">
+      <button class="text-button" data-action="rename-unit">Trainingstag umbenennen</button>
+      <button class="text-button danger-text" data-action="delete-unit">Trainingstag löschen</button>
+    </div>
   `;
 }
 
@@ -1830,6 +1858,53 @@ appMain.addEventListener("click", (event) => {
       Store.removeSet(currentExerciseId);
     }
     renderCurrentView();
+    return;
+  }
+
+  // ----- Eigene Pläne und Trainingstage -----
+  // prompt() zeigt das eingebaute Eingabefenster (auf dem iPhone ein
+  // iOS-Dialog). Es gibt den Text zurück, oder null bei "Abbrechen".
+  if (action === "add-plan") {
+    const name = askName("Name des neuen Plans:", "");
+    if (!name) return;
+    location.hash = "plaene/" + Store.addPlan(name);
+    return;
+  }
+  if (action === "rename-plan") {
+    const plan = Store.getPlan(planId);
+    const name = askName("Neuer Name des Plans:", plan.name);
+    if (!name) return;
+    Store.renamePlan(planId, name);
+    renderCurrentView();
+    return;
+  }
+  if (action === "delete-plan") {
+    const plan = Store.getPlan(planId);
+    if (!confirm(`Plan „${plan.name}“ löschen? Deine gespeicherten Trainings bleiben erhalten.`)) return;
+    Store.deletePlan(planId);
+    location.hash = "plaene";
+    return;
+  }
+  if (action === "add-unit") {
+    const name = askName("Name des Trainingstags, z.B. „Oberkörper“:", "");
+    if (!name) return;
+    Store.addUnit(planId, name);
+    renderCurrentView();
+    return;
+  }
+  if (action === "rename-unit") {
+    const unit = Store.getUnit(planId, unitId);
+    const name = askName("Neuer Name des Trainingstags:", unit.name);
+    if (!name) return;
+    Store.renameUnit(planId, unitId, name);
+    renderCurrentView();
+    return;
+  }
+  if (action === "delete-unit") {
+    const unit = Store.getUnit(planId, unitId);
+    if (!confirm(`Trainingstag „${unit.name}“ löschen? Deine gespeicherten Trainings bleiben erhalten.`)) return;
+    Store.deleteUnit(planId, unitId);
+    location.hash = "plaene/" + planId;
     return;
   }
 

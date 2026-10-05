@@ -356,6 +356,55 @@ const Store = {
     return plan ? structuredClone(plan) : undefined;
   },
 
+  // ----- Eigene Pläne und Trainingstage -----
+
+  // Neuen, leeren Plan anlegen. Gibt seine id zurück.
+  addPlan(name) {
+    const plan = { id: createId(), name: name, description: "Eigener Plan", custom: true, units: [] };
+    plans.push(plan);
+    save();
+    return plan.id;
+  },
+
+  renamePlan(planId, name) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    plan.name = name;
+    save();
+  },
+
+  // Plan löschen. Gespeicherte Trainings bleiben erhalten (sie kennen den
+  // Namen des Plans selbst). War er aktiv, ist danach kein Plan aktiv.
+  deletePlan(planId) {
+    plans = plans.filter((p) => p.id !== planId);
+    if (activePlanId === planId) activePlanId = null;
+    save();
+  },
+
+  // Trainingstag (Einheit) zu einem Plan hinzufügen. Gibt seine id zurück.
+  addUnit(planId, name) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return null;
+    const unit = { id: createId(), name: name, exerciseIds: [] };
+    plan.units.push(unit);
+    save();
+    return unit.id;
+  },
+
+  renameUnit(planId, unitId, name) {
+    const unit = findUnit(planId, unitId);
+    if (!unit) return;
+    unit.name = name;
+    save();
+  },
+
+  deleteUnit(planId, unitId) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    plan.units = plan.units.filter((u) => u.id !== unitId);
+    save();
+  },
+
   // ----- Aktiver Plan -----
 
   getActivePlanId() {
