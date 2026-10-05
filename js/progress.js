@@ -102,3 +102,20 @@ function isNewRecord(exerciseId, sets) {
   const best = bestSet(workingSets(sets));
   return Boolean(record && best && isBetterSet(best, record));
 }
+
+// Wurde in diesem (vergangenen) Training bei der Übung ein Rekord
+// aufgestellt? Verglichen wird mit allen Trainings DAVOR.
+function wasRecordInWorkout(exerciseId, workout) {
+  const entry = workout.exercises.find((e) => e.exerciseId === exerciseId);
+  if (!entry || !entry.done || entry.skipped) return false;
+  const best = bestSet(workingSets(entry.sets));
+  if (!best) return false;
+  let before = null;
+  Store.getExerciseHistory(exerciseId)
+    .filter((session) => session.date < workout.date)
+    .forEach((session) => {
+      const b = bestSet(session.sets);
+      if (b && (!before || isBetterSet(b, before))) before = b;
+    });
+  return Boolean(before && isBetterSet(best, before));
+}

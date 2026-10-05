@@ -2374,3 +2374,102 @@ body.has-island .back-link {
     color: var(--accent);
   }
 }
+
+/* ===== Trainingsprotokoll ===== */
+/* Trainingstage im großen Kalender sind Links */
+a.cal-day {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.cal-day:active {
+  transform: scale(0.9);
+}
+
+.protocol-workout + .protocol-workout {
+  margin-top: 28px;
+}
+
+.protocol-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.protocol-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.protocol-title strong {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.protocol-title span {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* Vier Kennzahlen nebeneinander */
+.protocol-stats {
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0 0 12px;
+  padding: 12px 4px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.protocol-exercise {
+  padding: 10px 12px 10px 16px;
+  background: var(--surface);
+}
+
+.protocol-exercise-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.protocol-exercise-head .exercise-name {
+  flex: 1;
+}
+
+/* Bearbeiten: eine Zeile pro Satz, "W  [ 60 ] × [ 10 ]" */
+.protocol-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.protocol-set {
+  display: grid;
+  grid-template-columns: 32px 1fr 16px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.protocol-set .set-input {
+  height: 38px;
+  font-size: 17px;
+}
+
+.protocol-set.warmup .set-number {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--fill-strong);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.protocol-times {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Löschen in Rot (zerstörende Aktion, wie bei iOS) */
+.danger-text {
+  color: var(--red);
+}

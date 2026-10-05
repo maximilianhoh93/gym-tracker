@@ -303,7 +303,12 @@ function renderCalendar(year, month, days, weeks, size = "small") {
     if (key === todayKey) classes.push("today");
     if (key > todayKey) classes.push("future");
     const label = size === "large" ? `<span class="cal-number">${day}</span>` : "";
-    cells += `<span class="${classes.join(" ")}" title="${day}.">${label}</span>`;
+    if (size === "large" && days.has(key)) {
+      // Trainingstag in der Monatsübersicht: antippbar, öffnet das Protokoll
+      cells += `<a class="${classes.join(" ")}" href="#einstellungen/tag/${key}" aria-label="Training am ${day}.">${label}</a>`;
+    } else {
+      cells += `<span class="${classes.join(" ")}" title="${day}.">${label}</span>`;
+    }
   }
   return `<div class="calendar ${size}">${cells}</div>`;
 }

@@ -541,6 +541,44 @@ const Store = {
     return currentWorkout ? structuredClone(currentWorkout) : null;
   },
 
+  // ----- Trainingsprotokoll (vergangene Trainings ansehen und ändern) -----
+
+  // Alle beendeten Trainings eines Tages (z.B. "2026-10-05"), ältestes zuerst
+  getWorkoutsOnDay(dayKey) {
+    return structuredClone(
+      workouts.filter((w) => dayKeyOf(w.date) === dayKey).sort((a, b) => a.date.localeCompare(b.date))
+    );
+  },
+
+  // Gewicht oder Wiederholungen eines Satzes in einem vergangenen Training ändern
+  updateWorkoutSet(workoutId, exerciseId, index, field, value) {
+    const workout = workouts.find((w) => w.id === workoutId);
+    const entry = workout && workout.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!entry || !entry.sets[index]) return;
+    // Leere Wiederholungen nicht speichern: Ein Satz braucht Wiederholungen
+    if (field === "reps" && value === null) return;
+    entry.sets[index][field] = value;
+    save();
+  },
+
+  // Eine Übung aus einem vergangenen Training entfernen. Bleibt danach
+  // nichts übrig, wird das ganze Training gelöscht.
+  removeWorkoutExercise(workoutId, exerciseId) {
+    const workout = workouts.find((w) => w.id === workoutId);
+    if (!workout) return;
+    workout.exercises = workout.exercises.filter((e) => e.exerciseId !== exerciseId);
+    if (workout.exercises.length === 0) {
+      workouts = workouts.filter((w) => w.id !== workoutId);
+    }
+    save();
+  },
+
+  // Ein vergangenes Training komplett löschen
+  deleteWorkout(workoutId) {
+    workouts = workouts.filter((w) => w.id !== workoutId);
+    save();
+  },
+
   // Die Einheit, deren Training gerade läuft (heute), sonst null
   // Gilt erst als "laufend", wenn schon etwas passiert ist (Wiederholungen
   // eingetragen, abgehakt oder übersprungen). Nur Reinschauen zählt nicht.
@@ -668,10 +706,16 @@ const Store = {
     if (!currentWorkout) return;
     const endedAt = auto ? currentWorkout.lastActivityAt || currentWorkout.startedAt : new Date().toISOString();
     const minutes = Math.round((new Date(endedAt) - new Date(currentWorkout.startedAt)) / 60000);
+    // Namen von Plan und Einheit mitspeichern, damit das Protokoll lesbar
+    // bleibt, auch wenn die Einheit später umbenannt oder gelöscht wird
+    const plan = plans.find((p) => p.id === currentWorkout.planId);
+    const unit = plan ? plan.units.find((u) => u.id === currentWorkout.unitId) : null;
     const finished = {
       id: currentWorkout.id,
       planId: currentWorkout.planId,
       unitId: currentWorkout.unitId,
+      planName: plan ? plan.name : "",
+      unitName: unit ? unit.name : "",
       startedAt: currentWorkout.startedAt,
       date: endedAt, // Zeitpunkt des Endes
       durationMinutes: minutes,

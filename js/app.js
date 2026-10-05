@@ -46,6 +46,7 @@ function route() {
   previousHash = currentHash;
   currentHash = location.hash;
   noteEditingId = null; // Ein offenes Notizfeld schließt beim Seitenwechsel
+  protocolEditingId = null; // ebenso der Bearbeiten-Modus im Protokoll
   const { viewName } = parseHash();
 
   // Alle Ansichten durchgehen: nur die passende bleibt sichtbar
@@ -79,7 +80,7 @@ function renderCurrentView() {
   } else if (viewName === "uebungen") {
     renderUebungen(params[0]);
   } else if (viewName === "einstellungen") {
-    renderSettings();
+    renderSettings(params[0], params[1]);
   }
 }
 
@@ -1229,8 +1230,13 @@ function handleExerciseEdit(event) {
 
 // ===== Ansicht "Einstellungen" =====
 // Wochenziel, Urlaubsmodus, Streak und eine aufklappbare Monatsübersicht
-function renderSettings() {
+function renderSettings(subView, dayKey) {
   const container = document.getElementById("view-einstellungen");
+  // #einstellungen/tag/2026-10-05 -> Protokoll dieses Tages
+  if (subView === "tag" && dayKey) {
+    renderDayProtocol(container, dayKey);
+    return;
+  }
   const goal = Store.getWeeklyGoal();
   const days = trainingDayKeys();
   const weeks = weekStatuses(days);
@@ -1290,7 +1296,7 @@ function renderSettings() {
       const name = cursor.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
       const goalText = summary.decided > 0 ? ` · Ziel ${summary.gold}/${summary.decided} Wochen` : "";
       months += `
-        <details class="month-item">
+        <details class="month-item" data-month="${year}-${month}" ${openMonths.has(`${year}-${month}`) ? "open" : ""}>
           <summary>
             <span class="month-name">${name}</span>
             <span class="month-stats">${summary.trainingDays} ${summary.trainingDays === 1 ? "Tag" : "Tage"}${goalText}</span>
@@ -1323,6 +1329,138 @@ function renderSettings() {
       : `${legend}<div class="month-list">${months}</div>`}
     ${renderBackupSection()}
   `;
+}
+
+// Welche Monate in der Monatsübersicht aufgeklappt sind ("2026-9" = Oktober,
+// weil JavaScript die Monate ab 0 zählt). So ist ein Monat nach dem Besuch
+// des Protokolls noch offen. "toggle" meldet sich nicht über "Blubbern",
+// deshalb hören wir in der capture-Phase zu (drittes Argument true).
+const openMonths = new Set();
+document.addEventListener(
+  "toggle",
+  (event) => {
+    const details = event.target;
+    if (!details.matches || !details.matches(".month-item")) return;
+    if (details.open) openMonths.add(details.dataset.month);
+    else openMonths.delete(details.dataset.month);
+  },
+  true
+);
+
+// ===== Trainingsprotokoll (#einstellungen/tag/<datum>) =====
+// Alle Trainings eines Tages mit Kennzahlen und Übungen. Im Bearbeiten-
+// Modus lassen sich Werte ändern, Übungen entfernen und Trainings löschen.
+
+// Welches Training gerade bearbeitet wird (sonst null)
+let protocolEditingId = null;
+
+function renderDayProtocol(container, dayKey) {
+  const workouts = Store.getWorkoutsOnDay(dayKey);
+  const date = new Date(dayKey + "T12:00");
+  setHeader(date.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }), "#einstellungen", "Einstellungen");
+
+  if (workouts.length === 0) {
+    container.innerHTML = `<p class="placeholder">An diesem Tag gibt es kein gespeichertes Training (mehr).</p>
+      <a class="button-secondary" href="#einstellungen">Zurück zu den Einstellungen</a>`;
+    return;
+  }
+  container.innerHTML = workouts.map(renderProtocolWorkout).join("");
+}
+
+// Ein Training im Protokoll: Kopf, Kennzahlen, Übungen
+function renderProtocolWorkout(workout) {
+  const editing = protocolEditingId === workout.id;
+  // Name der Einheit: aktueller Name, sonst der beim Speichern gemerkte
+  const plan = Store.getPlan(workout.planId);
+  const unit = plan ? plan.units.find((u) => u.id === workout.unitId) : null;
+  const unitName = unit ? unit.name : workout.unitName || "Training";
+  const planName = plan ? plan.name : workout.planName || "";
+
+  // Uhrzeit von–bis, z.B. "18:15–19:19"
+  const time = (iso) => new Date(iso).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const timeText = workout.startedAt ? `${time(workout.startedAt)}–${time(workout.date)}` : time(workout.date);
+
+  // Kennzahlen (nur Arbeitssätze, nur abgehakte Übungen)
+  const done = workout.exercises.filter((e) => e.done && !e.skipped);
+  const setCount = done.reduce((sum, e) => sum + workingSets(e.sets).length, 0);
+  const moved = done.reduce(
+    (sum, e) => sum + workingSets(e.sets).reduce((s, set) => s + (set.weight || 0) * set.reps, 0),
+    0
+  );
+  const records = done.filter((e) => wasRecordInWorkout(e.exerciseId, workout)).length;
+  const stats = [
+    [workout.durationMinutes ? `${workout.durationMinutes} min` : "–", "Dauer"],
+    [setCount, setCount === 1 ? "Satz" : "Sätze"],
+    [formatGerman(moved), "kg bewegt"],
+    [records, records === 1 ? "Rekord" : "Rekorde"],
+  ];
+
+  const rows = workout.exercises
+    .map((entry) => {
+      const exercise = Store.getExercise(entry.exerciseId);
+      const name = exercise ? exercise.name : "Gelöschte Übung";
+      const record = wasRecordInWorkout(entry.exerciseId, workout) ? ` <span class="badge record">Rekord</span>` : "";
+      const removeButton = editing
+        ? `<button class="icon-button" data-action="protocol-remove-exercise" data-workout="${workout.id}"
+             data-id="${entry.exerciseId}" aria-label="${escapeHtml(name)} entfernen">${XMARK_ICON}</button>`
+        : "";
+
+      // Ansehen: eine Zeile Zusammenfassung. Bearbeiten: Eingabefelder pro Satz
+      let detail;
+      if (entry.skipped) {
+        detail = `<span class="exercise-meta">Übersprungen</span>`;
+      } else if (!editing) {
+        const working = workingSets(entry.sets);
+        detail = `<span class="exercise-meta">${working.length ? formatSetsShort(working) : "Keine Sätze"}</span>`;
+      } else {
+        let number = 0;
+        detail = `<div class="protocol-sets">${entry.sets
+          .map((set, i) => {
+            const label = set.warmup ? "W" : String(++number);
+            const attrs = `data-workout="${workout.id}" data-exercise="${entry.exerciseId}" data-index="${i}"`;
+            return `
+              <div class="protocol-set ${set.warmup ? "warmup" : ""}">
+                <span class="set-number">${label}</span>
+                <input class="set-input protocol-input" type="text" inputmode="decimal" placeholder="–"
+                  value="${formatNumber(set.weight)}" ${attrs} data-field="weight" aria-label="Gewicht">
+                <span class="protocol-times">×</span>
+                <input class="set-input protocol-input" type="text" inputmode="numeric"
+                  value="${formatNumber(set.reps)}" ${attrs} data-field="reps" aria-label="Wiederholungen">
+              </div>`;
+          })
+          .join("")}</div>`;
+      }
+
+      return `
+        <li class="protocol-exercise ${editing ? "editing" : ""}">
+          <div class="protocol-exercise-head">
+            <span class="exercise-name">${escapeHtml(name)}${record}</span>
+            ${removeButton}
+          </div>
+          ${detail}
+        </li>`;
+    })
+    .join("");
+
+  return `
+    <section class="protocol-workout">
+      <div class="protocol-head">
+        <div class="protocol-title">
+          <strong>${escapeHtml(unitName)}</strong>
+          <span>${escapeHtml(planName)}${planName ? " · " : ""}${timeText}</span>
+        </div>
+        <button class="finish-button ${editing ? "ready" : ""}" data-action="protocol-edit" data-workout="${workout.id}">
+          ${editing ? "Fertig" : "Bearbeiten"}
+        </button>
+      </div>
+      <div class="stat-row protocol-stats">
+        ${stats.map(([value, label]) => `<div class="stat"><span class="stat-value">${value}</span><span class="stat-label">${label}</span></div>`).join("")}
+      </div>
+      <ul class="card-list protocol-list">${rows}</ul>
+      ${editing
+        ? `<button class="text-button danger-text" data-action="protocol-delete" data-workout="${workout.id}">Training löschen</button>`
+        : ""}
+    </section>`;
 }
 
 // ===== Sicherung =====
@@ -1558,6 +1696,32 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Trainingsprotokoll: Bearbeiten an/aus, Übung entfernen, Training löschen
+  if (action === "protocol-edit") {
+    const id = button.dataset.workout;
+    protocolEditingId = protocolEditingId === id ? null : id;
+    renderCurrentView();
+    return;
+  }
+  if (action === "protocol-remove-exercise") {
+    const exercise = Store.getExercise(exerciseId);
+    const name = exercise ? exercise.name : "Diese Übung";
+    if (!confirm(`„${name}“ aus diesem Training entfernen?`)) return;
+    Store.removeWorkoutExercise(button.dataset.workout, exerciseId);
+    renderCurrentView();
+    return;
+  }
+  if (action === "protocol-delete") {
+    if (!confirm("Dieses Training komplett löschen? Das lässt sich nicht rückgängig machen.")) return;
+    Store.deleteWorkout(button.dataset.workout);
+    protocolEditingId = null;
+    // Gibt es an diesem Tag kein Training mehr, zurück zu den Einstellungen
+    const dayKey = parseHash().params[1];
+    if (Store.getWorkoutsOnDay(dayKey).length === 0) location.hash = "einstellungen";
+    else renderCurrentView();
+    return;
+  }
+
   // Sicherung
   if (action === "backup-export") {
     exportBackup();
@@ -1698,7 +1862,9 @@ appMain.addEventListener("click", (event) => {
 // aber NICHT neu, sonst würde das Feld beim Tippen den Fokus verlieren.
 appMain.addEventListener("input", (event) => {
   const input = event.target;
-  if (!input.matches(".set-input")) return;
+  // Nur Satzfelder im laufenden Training; die Felder im Protokoll haben
+  // einen eigenen Behandler (siehe unten)
+  if (!input.matches(".set-input") || input.matches(".protocol-input")) return;
 
   const exerciseId = parseHash().params[1];
   const index = Number(input.dataset.index);
@@ -1737,6 +1903,20 @@ appMain.addEventListener("input", (event) => {
       if (warmupInput) warmupInput.value = formatNumber(suggestion);
     }
   }
+});
+
+// Eingaben im Trainingsprotokoll (Bearbeiten-Modus) sofort speichern.
+// Neu gezeichnet wird erst beim Tipp auf "Fertig", damit der Fokus bleibt.
+appMain.addEventListener("input", (event) => {
+  const input = event.target;
+  if (!input.matches(".protocol-input")) return;
+  Store.updateWorkoutSet(
+    input.dataset.workout,
+    input.dataset.exercise,
+    Number(input.dataset.index),
+    input.dataset.field,
+    parseNumber(input.value)
+  );
 });
 
 // Felder der Seite "Übung bearbeiten" und das Notizfeld im Training
