@@ -503,6 +503,37 @@ RestTimer.onChange = () => {
   renderIsland();
 };
 
+// Welche Einheit ist als nächste dran? Die nach der zuletzt trainierten
+// (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
+// Wurde noch nie trainiert, ist es die erste.
+function nextUnitId(plan) {
+  let lastIndex = -1;
+  let lastDate = null;
+  plan.units.forEach((unit, index) => {
+    const date = Store.getLastWorkoutDate(unit.id);
+    if (date && (!lastDate || date > lastDate)) {
+      lastDate = date;
+      lastIndex = index;
+    }
+  });
+  // % (Modulo) ergibt den Rest der Division: Nach der letzten Einheit -> 0
+  return plan.units[(lastIndex + 1) % plan.units.length].id;
+}
+
+// "Noch nie trainiert", "Zuletzt heute", "Zuletzt gestern", "Zuletzt vor 3 Tagen"
+function lastDoneText(date) {
+  if (!date) return "Noch nie trainiert";
+  // Kalendertage vergleichen, nicht Stunden: gestern 23 Uhr ist "gestern"
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const days = Math.round((today - day) / (24 * 60 * 60 * 1000));
+  if (days === 0) return "Zuletzt heute";
+  if (days === 1) return "Zuletzt gestern";
+  return `Zuletzt vor ${days} Tagen`;
+}
+
 // ===== Ansicht "Pläne" =====
 // Ebenen: Übersicht aller Pläne -> ein Plan -> eine Einheit -> Auswahl
 function renderPlaene(planId, unitId, subView) {
