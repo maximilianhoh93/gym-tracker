@@ -6,6 +6,7 @@
 //
 // Unteransichten hängen wir mit "/" an:
 //   #training/ppl-push             -> Training der Einheit "Push" (aktiver Plan)
+//   #training/ppl-push/<übung-id>  -> eine Übung in diesem Training (mit Timer)
 //   #plaene/ppl                    -> der Plan "Push/Pull/Legs"
 //   #plaene/ppl/ppl-push           -> dessen Einheit "Push"
 //   #plaene/ppl/ppl-push/auswahl   -> Übungen für "Push" aus dem Pool auswählen
@@ -51,6 +52,7 @@ function route() {
   });
 
   renderCurrentView();
+  updateTimerBar();
 
   // Nach jedem Wechsel nach oben scrollen
   window.scrollTo(0, 0);
@@ -65,7 +67,7 @@ function renderCurrentView() {
   setHeader(VIEW_TITLES[viewName]);
 
   if (viewName === "training") {
-    renderTraining(params[0]);
+    renderTraining(params[0], params[1]);
   } else if (viewName === "plaene") {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
@@ -148,7 +150,8 @@ function renderExerciseForm(planId = "", unitId = "") {
 // ===== Ansicht "Training" =====
 // Ohne unitId: Einheiten des aktiven Plans zur Auswahl.
 // Mit unitId: das Training dieser Einheit.
-function renderTraining(unitId) {
+// Mit unitId und exerciseId: eine einzelne Übung mit Pausentimer.
+function renderTraining(unitId, exerciseId) {
   const container = document.getElementById("view-training");
   const plan = Store.getPlan(Store.getActivePlanId());
 
@@ -159,6 +162,11 @@ function renderTraining(unitId) {
         aus und tippe auf „Als aktiven Plan wählen“.</p>
       <a class="button-secondary" href="#plaene">Plan auswählen</a>
     `;
+    return;
+  }
+
+  if (unitId && exerciseId) {
+    renderExerciseView(container, plan, unitId, exerciseId);
     return;
   }
 
@@ -198,8 +206,7 @@ function renderTraining(unitId) {
   `;
 }
 
-// Training einer Einheit. Vorerst nur die Übungsliste; Sätze, Gewicht und
-// Wiederholungen erfassen kommt in Schritt 4.
+// Training einer Einheit: Liste der Übungen. Ein Tipp öffnet die Übung.
 function renderWorkout(container, plan, unitId) {
   const unit = Store.getUnit(plan.id, unitId);
   if (!unit) {
@@ -212,11 +219,14 @@ function renderWorkout(container, plan, unitId) {
   const cards = exercises
     .map(
       (exercise) => `
-        <li class="exercise-card">
-          <span class="exercise-info">
-            <span class="exercise-name">${escapeHtml(exercise.name)}</span>
-            <span class="exercise-meta">${escapeHtml(muscleGroupName(exercise.muscleGroupId))}</span>
-          </span>
+        <li>
+          <a class="exercise-card unit-card" href="#training/${unit.id}/${exercise.id}">
+            <span class="exercise-info">
+              <span class="exercise-name">${escapeHtml(exercise.name)}</span>
+              <span class="exercise-meta">${escapeHtml(muscleGroupName(exercise.muscleGroupId))}</span>
+            </span>
+            <span class="chevron" aria-hidden="true">›</span>
+          </a>
         </li>
       `
     )
@@ -227,10 +237,199 @@ function renderWorkout(container, plan, unitId) {
     ${exercises.length === 0
       ? `<p class="placeholder">Diese Einheit hat noch keine Übungen.</p>
          <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">Übungen auswählen</a>`
-      : `<ul class="card-list">${cards}</ul>
-         <p class="hint">Sätze, Gewicht und Wiederholungen erfassen kommt im nächsten Schritt.</p>`}
+      : `<ul class="card-list">${cards}</ul>`}
   `;
 }
+
+// Eine Übung im Training: Pausentimer, später auch die Sätze
+function renderExerciseView(container, plan, unitId, exerciseId) {
+  const unit = Store.getUnit(plan.id, unitId);
+  const exercise = Store.getExercise(exerciseId);
+  if (!unit || !exercise) {
+    location.hash = "training/" + unitId;
+    return;
+  }
+  setHeader(exercise.name, "#training/" + unit.id);
+
+  // Position in der Einheit, für "Übung 2 von 5" und den Weiter-Knopf
+  const index = unit.exerciseIds.indexOf(exercise.id);
+  const nextExercise = Store.getExercise(unit.exerciseIds[index + 1]);
+
+  const nextLink = nextExercise
+    ? `<a class="button-secondary" href="#training/${unit.id}/${nextExercise.id}">
+         Nächste Übung: ${escapeHtml(nextExercise.name)} ›</a>`
+    : `<a class="button-secondary" href="#training/${unit.id}">Zurück zur Übersicht</a>`;
+
+  // Die Timer-Karte merkt sich in data-exercise, zu welcher Übung sie gehört
+  container.innerHTML = `
+    <p class="intro">
+      ${escapeHtml(muscleGroupName(exercise.muscleGroupId))} · Übung ${index + 1} von ${unit.exerciseIds.length}
+    </p>
+    <div id="timer-card" class="timer-card" data-exercise="${exercise.id}" data-unit="${unit.id}">
+      ${renderTimerCard(exercise.id)}
+    </div>
+    <h2 class="section-title">Sätze</h2>
+    <p class="placeholder">Sätze mit Gewicht und Wiederholungen erfassen kommt im nächsten Schritt.</p>
+    ${nextLink}
+  `;
+}
+
+// ===== Pausentimer: Anzeige =====
+// Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt.
+
+// Umfang des Rings: 2 · π · Radius. Damit zeichnen wir den Fortschritt:
+// Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
+// "verschoben" wird, erscheint nur teilweise (stroke-dashoffset).
+const RING_RADIUS = 88;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+// Schnellwahl-Dauern in Sekunden
+const TIMER_PRESETS = [60, 90, 120, 180];
+
+// Gehört der laufende Timer zu dieser Übung?
+function timerBelongsTo(exerciseId) {
+  return RestTimer.status !== "idle" && RestTimer.context && RestTimer.context.exerciseId === exerciseId;
+}
+
+// Inhalt der Timer-Karte, abhängig vom Zustand des Timers
+function renderTimerCard(exerciseId) {
+  const restSeconds = Store.getRestSeconds(exerciseId);
+  // Läuft der Timer gerade für eine ANDERE Übung, zeigt diese Karte ihren
+  // eigenen Bereit-Zustand. Ein Start hier ersetzt dann den anderen Timer.
+  const status = timerBelongsTo(exerciseId) ? RestTimer.status : "idle";
+
+  const timeText = status === "idle" ? formatDuration(restSeconds * 1000) : formatDuration(RestTimer.getRemainingMs());
+  const progress = status === "idle" ? 1 : RestTimer.getProgress();
+  const labels = { idle: "Pause", running: "Pause läuft", paused: "Angehalten", done: "Pause vorbei" };
+
+  // Linker Knopf: "Abbrechen" (bei "done": "Fertig")
+  const leftButton =
+    status === "done"
+      ? `<button class="round-button gray" data-action="timer-reset">Fertig</button>`
+      : `<button class="round-button gray" data-action="timer-reset" ${status === "idle" ? "disabled" : ""}>Abbrechen</button>`;
+
+  // Rechter Knopf: je nach Zustand Start / Pause / Fortsetzen / Nochmal
+  const rightButtons = {
+    idle: `<button class="round-button green" data-action="timer-start">Start</button>`,
+    running: `<button class="round-button orange" data-action="timer-pause">Pause</button>`,
+    paused: `<button class="round-button green" data-action="timer-resume">Weiter</button>`,
+    done: `<button class="round-button green" data-action="timer-start">Nochmal</button>`,
+  };
+
+  // Dauer verstellen geht nur, solange der Timer nicht läuft
+  const adjust =
+    status === "idle"
+      ? `
+        <div class="timer-adjust">
+          <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−15 s</button>
+          ${TIMER_PRESETS.map(
+            (seconds) => `
+              <button class="preset ${seconds === restSeconds ? "selected" : ""}"
+                data-action="timer-preset" data-seconds="${seconds}">${formatDuration(seconds * 1000)}</button>`
+          ).join("")}
+          <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+15 s</button>
+        </div>`
+      : "";
+
+  return `
+    <div class="timer-ring ${status}">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring-track" cx="100" cy="100" r="${RING_RADIUS}"></circle>
+        <circle class="ring-progress" id="timer-progress" cx="100" cy="100" r="${RING_RADIUS}"
+          stroke-dasharray="${RING_CIRCUMFERENCE}"
+          stroke-dashoffset="${RING_CIRCUMFERENCE * (1 - progress)}"></circle>
+      </svg>
+      <div class="timer-center">
+        <span class="timer-time" id="timer-time">${timeText}</span>
+        <span class="timer-label">${labels[status]}</span>
+      </div>
+    </div>
+    ${adjust}
+    <div class="timer-buttons">
+      ${leftButton}
+      ${rightButtons[status]}
+    </div>
+  `;
+}
+
+// Zeichnet die Timer-Karte neu (nur die Karte, nicht die ganze Seite)
+function refreshTimerCard() {
+  const card = document.getElementById("timer-card");
+  if (card) card.innerHTML = renderTimerCard(card.dataset.exercise);
+}
+
+// Aktualisiert nur Ziffern und Ring. Wird mehrmals pro Sekunde aufgerufen,
+// daher bewusst sparsam: kein Neuzeichnen der ganzen Karte.
+function updateTimerDigits() {
+  const card = document.getElementById("timer-card");
+  if (!card || !timerBelongsTo(card.dataset.exercise)) return;
+  document.getElementById("timer-time").textContent = formatDuration(RestTimer.getRemainingMs());
+  document
+    .getElementById("timer-progress")
+    .setAttribute("stroke-dashoffset", RING_CIRCUMFERENCE * (1 - RestTimer.getProgress()));
+}
+
+// Die kleine Leiste unten: sichtbar, wenn ein Timer aktiv ist, man aber
+// gerade nicht auf der Seite seiner Übung ist
+function updateTimerBar() {
+  const bar = document.getElementById("timer-bar");
+  const card = document.getElementById("timer-card");
+  const onTimerPage =
+    card && !card.closest("[hidden]") && timerBelongsTo(card.dataset.exercise);
+  const show = RestTimer.status !== "idle" && !onTimerPage;
+
+  bar.hidden = !show;
+  document.body.classList.toggle("has-timer-bar", show);
+  if (!show) return;
+
+  const { unitId, exerciseId, exerciseName } = RestTimer.context;
+  bar.href = `#training/${unitId}/${exerciseId}`;
+  bar.classList.toggle("done", RestTimer.status === "done");
+  document.getElementById("timer-bar-text").textContent =
+    RestTimer.status === "done" ? `Pause vorbei · ${exerciseName}` : `Pause · ${exerciseName}`;
+  document.getElementById("timer-bar-time").textContent = formatDuration(RestTimer.getRemainingMs());
+}
+
+// Knöpfe der Timer-Karte
+function handleTimerAction(button) {
+  const card = document.getElementById("timer-card");
+  const exerciseId = card.dataset.exercise;
+  const action = button.dataset.action;
+
+  if (action === "timer-start") {
+    const exercise = Store.getExercise(exerciseId);
+    RestTimer.start(Store.getRestSeconds(exerciseId), {
+      unitId: card.dataset.unit,
+      exerciseId: exerciseId,
+      exerciseName: exercise.name,
+    });
+  } else if (action === "timer-pause") {
+    RestTimer.pause();
+  } else if (action === "timer-resume") {
+    RestTimer.resume();
+  } else if (action === "timer-reset") {
+    RestTimer.reset();
+  } else if (action === "timer-preset") {
+    Store.setRestSeconds(exerciseId, Number(button.dataset.seconds));
+  } else if (action === "timer-adjust") {
+    // Zwischen 15 Sekunden und 10 Minuten bleiben
+    const seconds = Store.getRestSeconds(exerciseId) + Number(button.dataset.delta);
+    Store.setRestSeconds(exerciseId, Math.min(600, Math.max(15, seconds)));
+  }
+  // Start/Pause/... lösen über onChange ohnehin ein Neuzeichnen aus;
+  // für das Verstellen der Dauer zeichnen wir hier selbst neu
+  refreshTimerCard();
+}
+
+// Der Timer meldet sich bei jedem Takt und bei jeder Statusänderung
+RestTimer.onTick = () => {
+  updateTimerDigits();
+  updateTimerBar();
+};
+RestTimer.onChange = () => {
+  refreshTimerCard();
+  updateTimerBar();
+};
 
 // Welche Einheit ist als nächste dran? Die nach der zuletzt trainierten
 // (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
@@ -539,6 +738,12 @@ appMain.addEventListener("click", (event) => {
   const [planId, unitId] = parseHash().params;
   const exerciseId = button.dataset.id;
   const action = button.dataset.action;
+
+  // Timer-Knöpfe haben ihren eigenen Behandler (siehe oben)
+  if (action.startsWith("timer-")) {
+    handleTimerAction(button);
+    return;
+  }
 
   if (action === "activate-plan") {
     Store.setActivePlan(button.dataset.plan);

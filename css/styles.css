@@ -8,6 +8,9 @@
   --text-muted: #6e6e73;
   --accent: #0a84ff;
   --border: #d1d1d6;
+  --green: #34c759;  /* Apples Systemfarben, wie in der Timer-App */
+  --orange: #ff9500;
+  --gray-button: rgba(120, 120, 128, 0.16);
   --tab-height: 64px;
 }
 
@@ -20,6 +23,9 @@
     --text-muted: #98989f;
     --accent: #0a84ff;
     --border: #38383a;
+    --green: #30d158;
+    --orange: #ff9f0a;
+    --gray-button: rgba(120, 120, 128, 0.32);
   }
 }
 
@@ -467,4 +473,213 @@ body {
   flex-shrink: 0;
   color: var(--text-muted);
   font-size: 24px;
+}
+
+/* ===== Pausentimer (Design angelehnt an die iPhone-Timer-App) ===== */
+.timer-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 16px;
+  background: var(--surface);
+  border-radius: 22px;
+}
+
+/* Der Ring: ein Kreis als Hintergrund, darüber der orange Fortschritt */
+.timer-ring {
+  position: relative;
+  width: 240px;
+  height: 240px;
+}
+
+.timer-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg); /* Fortschritt soll oben (12 Uhr) beginnen */
+}
+
+.ring-track,
+.ring-progress {
+  fill: none;
+  stroke-width: 8;
+}
+
+.ring-track {
+  stroke: var(--gray-button);
+}
+
+.ring-progress {
+  stroke: var(--orange);
+  stroke-linecap: round; /* Runde Enden der Linie */
+  /* Sanfter Übergang zwischen den Aktualisierungen */
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+/* Ziffern und Beschriftung genau in der Mitte des Rings */
+.timer-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-time {
+  font-size: 64px;
+  font-weight: 200; /* Dünne Ziffern wie bei Apple */
+  /* Alle Ziffern gleich breit, damit die Anzeige beim Zählen nicht wackelt */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+
+.timer-label {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.timer-ring.paused .timer-time {
+  opacity: 0.5;
+}
+
+.timer-ring.done .timer-label {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+/* Dauer einstellen: −15 s, Schnellwahl, +15 s */
+.timer-adjust {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.preset,
+.step-button {
+  flex: 1; /* Alle Knöpfe teilen sich die Breite gleichmäßig */
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--gray-button);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.step-button {
+  color: var(--accent);
+}
+
+.preset.selected {
+  background: var(--orange);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.preset:active,
+.step-button:active {
+  opacity: 0.6;
+}
+
+/* Die zwei runden Knöpfe links und rechts */
+.timer-buttons {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 300px;
+}
+
+.round-button {
+  width: 84px;
+  height: 84px;
+  border: none;
+  border-radius: 50%;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  /* Doppelter Ring um den Knopf, wie bei Apple: erst eine Lücke in
+     Kartenfarbe, dann ein Ring in der Knopffarbe */
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--button-bg);
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+
+.round-button:active {
+  opacity: 0.7;
+}
+
+.round-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* color-mix mischt die Farbe mit Durchsichtigkeit: ein zartes Grün etc. */
+.round-button.green {
+  --button-bg: color-mix(in srgb, var(--green) 22%, transparent);
+  --button-text: var(--green);
+}
+
+.round-button.orange {
+  --button-bg: color-mix(in srgb, var(--orange) 22%, transparent);
+  --button-text: var(--orange);
+}
+
+.round-button.gray {
+  --button-bg: var(--gray-button);
+  --button-text: var(--text);
+}
+
+/* ===== Timer-Leiste über der Tab-Leiste ===== */
+.timer-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 8px);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.timer-bar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis; /* Zu langen Text mit "…" abschneiden */
+}
+
+.timer-bar-time {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--orange);
+}
+
+/* Abgelaufen: Leiste orange hervorheben */
+.timer-bar.done {
+  background: var(--orange);
+  color: #ffffff;
+}
+
+.timer-bar.done .timer-bar-time {
+  color: #ffffff;
+}
+
+/* Wenn die Leiste sichtbar ist, unten mehr Platz lassen */
+body.has-timer-bar .app-main {
+  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 76px);
 }

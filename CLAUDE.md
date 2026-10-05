@@ -44,7 +44,11 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich, muss aber innerhalb einer Übung änderbar sein.
 
 ### Pausentimer
-- Der Timer wird manuell gestartet. Standardwert: 3 Minuten, die Dauer ist änderbar.
+- Im Training öffnet ein Tipp auf eine Übung ihre eigene Seite. Dort gibt es den Pausentimer.
+- Der Timer wird manuell gestartet. Standardwert: 2 Minuten, die Dauer ist änderbar (Schnellwahl 1:00/1:30/2:00/3:00, ±15 s).
+- Jede Übung merkt sich ihre zuletzt eingestellte Pausenzeit.
+- Läuft der Timer und man wechselt die Übung, zeigt eine Leiste über der Tab-Leiste die Restzeit. Am Ende ertönt ein kurzer Ton.
+- Design angelehnt an die Timer-App des iPhones (Ring, dünne Ziffern, runde Knöpfe).
 - Die Zeit über Zeitstempel berechnen (nicht über einen reinen Zähler), damit der Timer auch korrekt bleibt, wenn die App kurz im Hintergrund war.
 - Die verwendete Pausenzeit wird mit der Übung gespeichert.
 
@@ -81,6 +85,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] 2. Trainingsarten und Einheiten anzeigen (Ganzkörper, Upper/Lower, Push/Pull/Legs, Bro-Split; Vorlagen in `js/storage.js`)
 - [x] 3. Übungen pro Einheit anlegen (Übungs-Pool nach Muskelgruppen, Auswahl pro Einheit, Sortieren per Drag and Drop; noch nicht dauerhaft gespeichert, das folgt in Schritt 7)
 - [x] Zusatz: aktiver Plan, Einheiten auf der Trainingsseite mit „Zuletzt“ und „Heute dran“, Einheiten per Drag and Drop sortierbar
+- [x] 6. Pausentimer (vorgezogen; `js/timer.js`)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
 

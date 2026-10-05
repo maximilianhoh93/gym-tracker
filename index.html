@@ -36,6 +36,14 @@
     </section>
   </main>
 
+  <!-- Kleine Leiste mit dem laufenden Pausentimer. Erscheint, wenn der
+       Timer läuft, man aber gerade nicht bei der zugehörigen Übung ist. -->
+  <a id="timer-bar" class="timer-bar" href="#" hidden>
+    <span class="timer-bar-icon" aria-hidden="true">⏱</span>
+    <span id="timer-bar-text" class="timer-bar-text">Pause</span>
+    <span id="timer-bar-time" class="timer-bar-time">0:00</span>
+  </a>
+
   <!-- Navigationsleiste unten: dort gut mit dem Daumen erreichbar -->
   <nav class="tab-bar">
     <a href="#training" class="tab" data-view="training">
@@ -62,6 +70,7 @@
 
   <!-- Reihenfolge wichtig: storage.js zuerst, weil app.js "Store" benutzt -->
   <script src="js/storage.js"></script>
+  <script src="js/timer.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

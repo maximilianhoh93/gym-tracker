@@ -17,6 +17,9 @@
 // - workouts: absolvierte Trainings, z.B. { unitId: "ppl-push", date: "2026-10-05T18:30:00.000Z", ... }.
 //   Wird ab Schritt 4 befüllt.
 
+// Standard-Pausenzeit für neue Übungen in Sekunden (2 Minuten)
+const DEFAULT_REST_SECONDS = 120;
+
 // Die Muskelgruppen, nach denen der Pool sortiert ist (in dieser Reihenfolge)
 const MUSCLE_GROUPS = [
   { id: "brust", name: "Brust" },
@@ -106,9 +109,25 @@ const Store = {
   addExercise(name, muscleGroupId) {
     const exists = exercises.some((ex) => ex.name.toLowerCase() === name.toLowerCase());
     if (exists) return null;
-    const exercise = { id: createId(), name: name, muscleGroupId: muscleGroupId };
+    const exercise = {
+      id: createId(),
+      name: name,
+      muscleGroupId: muscleGroupId,
+      restSeconds: DEFAULT_REST_SECONDS, // Pausenzeit, die sich die Übung merkt
+    };
     exercises.push(exercise);
     return structuredClone(exercise);
+  },
+
+  // Die Pausenzeit, die sich eine Übung gemerkt hat (in Sekunden)
+  getRestSeconds(exerciseId) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    return exercise && exercise.restSeconds ? exercise.restSeconds : DEFAULT_REST_SECONDS;
+  },
+
+  setRestSeconds(exerciseId, seconds) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (exercise) exercise.restSeconds = seconds;
   },
 
   // Übung aus dem Pool löschen, und damit auch aus allen Einheiten
