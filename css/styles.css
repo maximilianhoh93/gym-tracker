@@ -475,78 +475,31 @@ body {
   font-size: 24px;
 }
 
-/* ===== Pausentimer (Design angelehnt an die iPhone-Timer-App) ===== */
+/* ===== Pausentimer: Karte auf der Übungsseite ===== */
 .timer-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 24px 16px;
+  gap: 12px;
+  padding: 16px;
   background: var(--surface);
-  border-radius: 22px;
+  border-radius: 18px;
 }
 
-/* Der Ring: ein Kreis als Hintergrund, darüber der orange Fortschritt */
-.timer-ring {
-  position: relative;
-  width: 240px;
-  height: 240px;
-}
-
-.timer-ring svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg); /* Fortschritt soll oben (12 Uhr) beginnen */
-}
-
-.ring-track,
-.ring-progress {
-  fill: none;
-  stroke-width: 8;
-}
-
-.ring-track {
-  stroke: var(--gray-button);
-}
-
-.ring-progress {
-  stroke: var(--orange);
-  stroke-linecap: round; /* Runde Enden der Linie */
-  /* Sanfter Übergang zwischen den Aktualisierungen */
-  transition: stroke-dashoffset 0.25s linear;
-}
-
-/* Ziffern und Beschriftung genau in der Mitte des Rings */
-.timer-center {
-  position: absolute;
-  inset: 0;
+.rest-header {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
-.timer-time {
-  font-size: 64px;
-  font-weight: 200; /* Dünne Ziffern wie bei Apple */
-  /* Alle Ziffern gleich breit, damit die Anzeige beim Zählen nicht wackelt */
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -1px;
-  line-height: 1.1;
-}
-
-.timer-label {
-  font-size: 15px;
-  color: var(--text-muted);
-}
-
-.timer-ring.paused .timer-time {
-  opacity: 0.5;
-}
-
-.timer-ring.done .timer-label {
-  color: var(--orange);
+.rest-title {
   font-weight: 600;
+}
+
+.rest-value {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums; /* Alle Ziffern gleich breit */
+  color: var(--orange);
 }
 
 /* Dauer einstellen: −15 s, Schnellwahl, +15 s */
@@ -587,99 +540,200 @@ body {
   opacity: 0.6;
 }
 
-/* Die zwei runden Knöpfe links und rechts */
-.timer-buttons {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 300px;
+.timer-card .button-wide {
+  margin-bottom: 0;
+  background: var(--orange);
 }
 
-.round-button {
-  width: 84px;
-  height: 84px;
-  border: none;
-  border-radius: 50%;
-  font: inherit;
-  font-size: 16px;
-  cursor: pointer;
-  /* Doppelter Ring um den Knopf, wie bei Apple: erst eine Lücke in
-     Kartenfarbe, dann ein Ring in der Knopffarbe */
-  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--button-bg);
-  background: var(--button-bg);
-  color: var(--button-text);
-}
-
-.round-button:active {
-  opacity: 0.7;
-}
-
-.round-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-/* color-mix mischt die Farbe mit Durchsichtigkeit: ein zartes Grün etc. */
-.round-button.green {
-  --button-bg: color-mix(in srgb, var(--green) 22%, transparent);
-  --button-text: var(--green);
-}
-
-.round-button.orange {
-  --button-bg: color-mix(in srgb, var(--orange) 22%, transparent);
-  --button-text: var(--orange);
-}
-
-.round-button.gray {
-  --button-bg: var(--gray-button);
-  --button-text: var(--text);
-}
-
-/* ===== Timer-Leiste über der Tab-Leiste ===== */
-.timer-bar {
+/* ===== Die "Insel" oben (nachgebaute Dynamic Island) ===== */
+.island {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 8px);
-  z-index: 20;
+  /* Mittig oben. Auf iPhones mit Dynamic Island sitzt sie später (als
+     installierte App) genau auf Höhe der echten Insel. clamp(min, wert, max)
+     hält den Abstand zwischen 8 und 11 Pixeln. */
+  top: clamp(8px, calc(env(safe-area-inset-top) - 48px), 11px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: 200px;
+  height: 37px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #000000; /* Immer schwarz, auch im hellen Modus, wie bei Apple */
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  /* Weiches "Aufziehen" beim Auf- und Zuklappen */
+  transition:
+    width 0.35s cubic-bezier(0.3, 1.4, 0.5, 1),
+    height 0.35s cubic-bezier(0.3, 1.4, 0.5, 1),
+    border-radius 0.35s;
+}
+
+/* Aufgeklappt: fast so breit wie der Bildschirm */
+.island.expanded {
+  width: min(calc(100% - 16px), 400px);
+  height: 84px;
+  border-radius: 42px;
+}
+
+/* Aufpoppen beim ersten Erscheinen: kurz wachsen, leicht nachfedern */
+.island.pop {
+  animation: island-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+@keyframes island-pop {
+  from {
+    transform: translateX(-50%) scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Kompakt: kleiner Ring links, Zeit rechts. In der Mitte bliebe auf dem
+   iPhone Platz für die Kamera der echten Insel. */
+.island-compact {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 52px;
-  padding: 0 16px;
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
-  color: var(--text);
+  justify-content: space-between;
+  width: 100%;
+  height: 37px;
+  padding: 0 14px 0 9px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.island.expanded .island-compact {
+  display: none;
+}
+
+.mini-ring {
+  width: 22px;
+  height: 22px;
+  transform: rotate(-90deg); /* Fortschritt beginnt oben */
+}
+
+.mini-track,
+.mini-progress {
+  fill: none;
+  stroke-width: 3;
+}
+
+.mini-track {
+  stroke: rgba(255, 159, 10, 0.3);
+}
+
+.mini-progress {
+  stroke: #ff9f0a; /* Apples Orange (dunkle Variante, da Hintergrund schwarz) */
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+.island-time {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #ff9f0a;
+}
+
+.island.paused .island-time {
+  opacity: 0.5;
+}
+
+/* Aufgeklappt: links Name und große Zeit, rechts zwei runde Knöpfe */
+.island-expanded {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  height: 84px;
+  padding: 0 14px 0 24px;
+}
+
+.island.expanded .island-expanded {
+  display: flex;
+}
+
+.island-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: inherit;
   text-decoration: none;
 }
 
-.timer-bar-text {
-  flex: 1;
-  min-width: 0;
+.island-caption {
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis; /* Zu langen Text mit "…" abschneiden */
+  text-overflow: ellipsis; /* Zu langen Namen mit "…" abschneiden */
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.timer-bar-time {
-  font-size: 20px;
+.island-big {
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.island-big .island-time {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.island.done .island-big {
+  font-size: 24px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--orange);
+  color: #ff9f0a;
 }
 
-/* Abgelaufen: Leiste orange hervorheben */
-.timer-bar.done {
-  background: var(--orange);
+.island-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.island-button {
+  width: 50px;
+  height: 50px;
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.island-button:active {
+  opacity: 0.6;
+}
+
+.island-button.gray {
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
-.timer-bar.done .timer-bar-time {
-  color: #ffffff;
+.island-button.orange {
+  background: rgba(255, 159, 10, 0.3);
+  color: #ff9f0a;
 }
 
-/* Wenn die Leiste sichtbar ist, unten mehr Platz lassen */
-body.has-timer-bar .app-main {
-  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 76px);
+.island-button.green {
+  background: rgba(48, 209, 88, 0.3);
+  color: #30d158;
+  font-size: 26px; /* Das Zeichen ↻ ist von Natur aus klein */
+}
+
+/* Ist die Pause vorbei, pulsiert die Insel sanft, bis man reagiert */
+.island.done {
+  animation: island-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes island-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); }
+  50%      { box-shadow: 0 0 0 4px rgba(255, 159, 10, 0.55); }
 }

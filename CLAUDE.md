@@ -47,8 +47,9 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Im Training öffnet ein Tipp auf eine Übung ihre eigene Seite. Dort gibt es den Pausentimer.
 - Der Timer wird manuell gestartet. Standardwert: 2 Minuten, die Dauer ist änderbar (Schnellwahl 1:00/1:30/2:00/3:00, ±15 s).
 - Jede Übung merkt sich ihre zuletzt eingestellte Pausenzeit.
-- Läuft der Timer und man wechselt die Übung, zeigt eine Leiste über der Tab-Leiste die Restzeit. Am Ende ertönt ein kurzer Ton.
-- Design angelehnt an die Timer-App des iPhones (Ring, dünne Ziffern, runde Knöpfe).
+- Beim Start poppt oben mittig ein rundliches schwarzes Widget auf (Optik wie die Dynamic Island): kompakt mit kleinem Ring und Restzeit, sichtbar auf allen Seiten.
+- Antippen klappt es auf (Übungsname, große Zeit, Anhalten/Fortsetzen, Abbrechen). Ein Tipp daneben klappt es zu.
+- Am Ende ertönt ein kurzer Ton, das Widget klappt auf und zeigt „Pause vorbei“ (Nochmal / Fertig).
 - Die Zeit über Zeitstempel berechnen (nicht über einen reinen Zähler), damit der Timer auch korrekt bleibt, wenn die App kurz im Hintergrund war.
 - Die verwendete Pausenzeit wird mit der Übung gespeichert.
 

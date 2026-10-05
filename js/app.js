@@ -52,7 +52,6 @@ function route() {
   });
 
   renderCurrentView();
-  updateTimerBar();
 
   // Nach jedem Wechsel nach oben scrollen
   window.scrollTo(0, 0);
@@ -275,80 +274,47 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
 }
 
 // ===== Pausentimer: Anzeige =====
-// Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt.
-
-// Umfang des Rings: 2 · π · Radius. Damit zeichnen wir den Fortschritt:
-// Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
-// "verschoben" wird, erscheint nur teilweise (stroke-dashoffset).
-const RING_RADIUS = 88;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+// Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt:
+// 1. Auf der Übungsseite eine kleine Karte: Pausenzeit einstellen und starten.
+// 2. Solange der Timer aktiv ist, schwebt oben eine schwarze "Insel" im
+//    Stil der Dynamic Island des iPhones. Antippen klappt sie auf.
+// Hinweis: Die ECHTE Dynamic Island können nur Apps aus dem App Store
+// benutzen. Wir bauen sie innerhalb der Web-App nach.
 
 // Schnellwahl-Dauern in Sekunden
 const TIMER_PRESETS = [60, 90, 120, 180];
 
-// Gehört der laufende Timer zu dieser Übung?
-function timerBelongsTo(exerciseId) {
-  return RestTimer.status !== "idle" && RestTimer.context && RestTimer.context.exerciseId === exerciseId;
-}
+// Kleiner Fortschrittsring in der Insel. Umfang = 2 · π · Radius.
+// Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
+// "verschoben" wird, erscheint nur teilweise (stroke-dashoffset).
+const MINI_RING_RADIUS = 9;
+const MINI_RING_CIRCUMFERENCE = 2 * Math.PI * MINI_RING_RADIUS;
 
-// Inhalt der Timer-Karte, abhängig vom Zustand des Timers
+// Ist die Insel gerade aufgeklappt?
+let islandExpanded = false;
+
+// ----- Karte auf der Übungsseite -----
+
 function renderTimerCard(exerciseId) {
   const restSeconds = Store.getRestSeconds(exerciseId);
-  // Läuft der Timer gerade für eine ANDERE Übung, zeigt diese Karte ihren
-  // eigenen Bereit-Zustand. Ein Start hier ersetzt dann den anderen Timer.
-  const status = timerBelongsTo(exerciseId) ? RestTimer.status : "idle";
 
-  const timeText = status === "idle" ? formatDuration(restSeconds * 1000) : formatDuration(RestTimer.getRemainingMs());
-  const progress = status === "idle" ? 1 : RestTimer.getProgress();
-  const labels = { idle: "Pause", running: "Pause läuft", paused: "Angehalten", done: "Pause vorbei" };
-
-  // Linker Knopf: "Abbrechen" (bei "done": "Fertig")
-  const leftButton =
-    status === "done"
-      ? `<button class="round-button gray" data-action="timer-reset">Fertig</button>`
-      : `<button class="round-button gray" data-action="timer-reset" ${status === "idle" ? "disabled" : ""}>Abbrechen</button>`;
-
-  // Rechter Knopf: je nach Zustand Start / Pause / Fortsetzen / Nochmal
-  const rightButtons = {
-    idle: `<button class="round-button green" data-action="timer-start">Start</button>`,
-    running: `<button class="round-button orange" data-action="timer-pause">Pause</button>`,
-    paused: `<button class="round-button green" data-action="timer-resume">Weiter</button>`,
-    done: `<button class="round-button green" data-action="timer-start">Nochmal</button>`,
-  };
-
-  // Dauer verstellen geht nur, solange der Timer nicht läuft
-  const adjust =
-    status === "idle"
-      ? `
-        <div class="timer-adjust">
-          <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−15 s</button>
-          ${TIMER_PRESETS.map(
-            (seconds) => `
-              <button class="preset ${seconds === restSeconds ? "selected" : ""}"
-                data-action="timer-preset" data-seconds="${seconds}">${formatDuration(seconds * 1000)}</button>`
-          ).join("")}
-          <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+15 s</button>
-        </div>`
-      : "";
+  const presets = TIMER_PRESETS.map(
+    (seconds) => `
+      <button class="preset ${seconds === restSeconds ? "selected" : ""}"
+        data-action="timer-preset" data-seconds="${seconds}">${formatDuration(seconds * 1000)}</button>`
+  ).join("");
 
   return `
-    <div class="timer-ring ${status}">
-      <svg viewBox="0 0 200 200" aria-hidden="true">
-        <circle class="ring-track" cx="100" cy="100" r="${RING_RADIUS}"></circle>
-        <circle class="ring-progress" id="timer-progress" cx="100" cy="100" r="${RING_RADIUS}"
-          stroke-dasharray="${RING_CIRCUMFERENCE}"
-          stroke-dashoffset="${RING_CIRCUMFERENCE * (1 - progress)}"></circle>
-      </svg>
-      <div class="timer-center">
-        <span class="timer-time" id="timer-time">${timeText}</span>
-        <span class="timer-label">${labels[status]}</span>
-      </div>
+    <div class="rest-header">
+      <span class="rest-title">Pausenzeit</span>
+      <span class="rest-value">${formatDuration(restSeconds * 1000)}</span>
     </div>
-    ${adjust}
-    <div class="timer-buttons">
-      ${leftButton}
-      ${rightButtons[status]}
+    <div class="timer-adjust">
+      <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−15 s</button>
+      ${presets}
+      <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+15 s</button>
     </div>
+    <button class="button-primary button-wide" data-action="timer-start">Pause starten</button>
   `;
 }
 
@@ -356,38 +322,6 @@ function renderTimerCard(exerciseId) {
 function refreshTimerCard() {
   const card = document.getElementById("timer-card");
   if (card) card.innerHTML = renderTimerCard(card.dataset.exercise);
-}
-
-// Aktualisiert nur Ziffern und Ring. Wird mehrmals pro Sekunde aufgerufen,
-// daher bewusst sparsam: kein Neuzeichnen der ganzen Karte.
-function updateTimerDigits() {
-  const card = document.getElementById("timer-card");
-  if (!card || !timerBelongsTo(card.dataset.exercise)) return;
-  document.getElementById("timer-time").textContent = formatDuration(RestTimer.getRemainingMs());
-  document
-    .getElementById("timer-progress")
-    .setAttribute("stroke-dashoffset", RING_CIRCUMFERENCE * (1 - RestTimer.getProgress()));
-}
-
-// Die kleine Leiste unten: sichtbar, wenn ein Timer aktiv ist, man aber
-// gerade nicht auf der Seite seiner Übung ist
-function updateTimerBar() {
-  const bar = document.getElementById("timer-bar");
-  const card = document.getElementById("timer-card");
-  const onTimerPage =
-    card && !card.closest("[hidden]") && timerBelongsTo(card.dataset.exercise);
-  const show = RestTimer.status !== "idle" && !onTimerPage;
-
-  bar.hidden = !show;
-  document.body.classList.toggle("has-timer-bar", show);
-  if (!show) return;
-
-  const { unitId, exerciseId, exerciseName } = RestTimer.context;
-  bar.href = `#training/${unitId}/${exerciseId}`;
-  bar.classList.toggle("done", RestTimer.status === "done");
-  document.getElementById("timer-bar-text").textContent =
-    RestTimer.status === "done" ? `Pause vorbei · ${exerciseName}` : `Pause · ${exerciseName}`;
-  document.getElementById("timer-bar-time").textContent = formatDuration(RestTimer.getRemainingMs());
 }
 
 // Knöpfe der Timer-Karte
@@ -398,17 +332,13 @@ function handleTimerAction(button) {
 
   if (action === "timer-start") {
     const exercise = Store.getExercise(exerciseId);
+    islandExpanded = false;
+    // Läuft schon ein Timer, wird er durch den neuen ersetzt
     RestTimer.start(Store.getRestSeconds(exerciseId), {
       unitId: card.dataset.unit,
       exerciseId: exerciseId,
       exerciseName: exercise.name,
     });
-  } else if (action === "timer-pause") {
-    RestTimer.pause();
-  } else if (action === "timer-resume") {
-    RestTimer.resume();
-  } else if (action === "timer-reset") {
-    RestTimer.reset();
   } else if (action === "timer-preset") {
     Store.setRestSeconds(exerciseId, Number(button.dataset.seconds));
   } else if (action === "timer-adjust") {
@@ -416,51 +346,127 @@ function handleTimerAction(button) {
     const seconds = Store.getRestSeconds(exerciseId) + Number(button.dataset.delta);
     Store.setRestSeconds(exerciseId, Math.min(600, Math.max(15, seconds)));
   }
-  // Start/Pause/... lösen über onChange ohnehin ein Neuzeichnen aus;
-  // für das Verstellen der Dauer zeichnen wir hier selbst neu
   refreshTimerCard();
 }
+
+// ----- Die Insel oben -----
+
+// Zeichnet die Insel passend zum Zustand des Timers.
+// Sie enthält immer beide Varianten (kompakt und aufgeklappt);
+// per CSS ist jeweils nur eine sichtbar.
+function renderIsland() {
+  const island = document.getElementById("island");
+  const status = RestTimer.status;
+
+  if (status === "idle") {
+    island.hidden = true;
+    islandExpanded = false;
+    return;
+  }
+
+  // Beim ersten Erscheinen die "Aufpopp"-Animation abspielen
+  if (island.hidden) {
+    island.hidden = false;
+    island.classList.remove("pop");
+    void island.offsetWidth; // Trick: zwingt den Browser, die Animation neu zu starten
+    island.classList.add("pop");
+  }
+
+  island.classList.toggle("expanded", islandExpanded);
+  island.classList.toggle("done", status === "done");
+  island.classList.toggle("paused", status === "paused");
+
+  const { unitId, exerciseId, exerciseName } = RestTimer.context;
+  const time = formatDuration(RestTimer.getRemainingMs());
+
+  // Rechter Knopf im aufgeklappten Zustand, je nach Zustand
+  const mainButton = {
+    running: `<button class="island-button orange" data-island="pause" aria-label="Anhalten">❚❚</button>`,
+    paused: `<button class="island-button orange" data-island="resume" aria-label="Fortsetzen">▶</button>`,
+    done: `<button class="island-button green" data-island="restart" aria-label="Nochmal">↻</button>`,
+  }[status];
+
+  island.innerHTML = `
+    <button class="island-compact" data-island="expand" aria-label="Timer öffnen">
+      <svg class="mini-ring" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="mini-track" cx="12" cy="12" r="${MINI_RING_RADIUS}"></circle>
+        <circle class="mini-progress" cx="12" cy="12" r="${MINI_RING_RADIUS}"
+          stroke-dasharray="${MINI_RING_CIRCUMFERENCE}"
+          stroke-dashoffset="${MINI_RING_CIRCUMFERENCE * (1 - RestTimer.getProgress())}"></circle>
+      </svg>
+      <span class="island-time">${status === "done" ? "0:00" : time}</span>
+    </button>
+
+    <div class="island-expanded">
+      <a class="island-info" href="#training/${unitId}/${exerciseId}" data-island="goto">
+        <span class="island-caption">${escapeHtml(exerciseName)}</span>
+        <span class="island-big">${status === "done" ? "Pause vorbei" : `<span class="island-time">${time}</span>`}</span>
+      </a>
+      <div class="island-buttons">
+        <button class="island-button gray" data-island="reset" aria-label="${status === "done" ? "Fertig" : "Abbrechen"}">✕</button>
+        ${mainButton}
+      </div>
+    </div>
+  `;
+}
+
+// Aktualisiert nur Ziffern und Ring. Wird mehrmals pro Sekunde aufgerufen,
+// daher bewusst sparsam: kein Neuzeichnen der ganzen Insel.
+function updateIslandTime() {
+  const time = formatDuration(RestTimer.getRemainingMs());
+  document.querySelectorAll("#island .island-time").forEach((el) => (el.textContent = time));
+  const ring = document.querySelector("#island .mini-progress");
+  if (ring) {
+    ring.setAttribute("stroke-dashoffset", MINI_RING_CIRCUMFERENCE * (1 - RestTimer.getProgress()));
+  }
+}
+
+// Antippen in der Insel. Die Insel liegt außerhalb von <main>, daher
+// bekommt sie einen eigenen Behandler.
+document.getElementById("island").addEventListener("click", (event) => {
+  // Den Tipp nicht weiter nach oben melden. Sonst hielte der Behandler
+  // "Tippen außerhalb" (unten) ihn für einen Tipp daneben, weil der
+  // angetippte Knopf nach dem Neuzeichnen nicht mehr existiert.
+  event.stopPropagation();
+
+  const target = event.target.closest("[data-island]");
+  if (!target) return;
+  const action = target.dataset.island;
+
+  if (action === "expand") {
+    islandExpanded = true;
+  } else if (action === "goto") {
+    // Der Link führt zur Übung; die Insel klappt dabei zu
+    islandExpanded = false;
+  } else if (action === "pause") {
+    RestTimer.pause();
+  } else if (action === "resume") {
+    RestTimer.resume();
+  } else if (action === "restart") {
+    islandExpanded = false;
+    RestTimer.start(RestTimer.durationMs / 1000, RestTimer.context);
+  } else if (action === "reset") {
+    RestTimer.reset();
+  }
+  renderIsland();
+});
+
+// Tippen irgendwo außerhalb der aufgeklappten Insel klappt sie wieder zu
+// (außer wenn die Pause vorbei ist: Das soll man bewusst bestätigen)
+document.addEventListener("click", (event) => {
+  if (!islandExpanded || RestTimer.status === "done") return;
+  if (event.target.closest("#island")) return;
+  islandExpanded = false;
+  renderIsland();
+});
 
 // Der Timer meldet sich bei jedem Takt und bei jeder Statusänderung
-RestTimer.onTick = () => {
-  updateTimerDigits();
-  updateTimerBar();
-};
+RestTimer.onTick = updateIslandTime;
 RestTimer.onChange = () => {
-  refreshTimerCard();
-  updateTimerBar();
+  // Ist die Pause vorbei, klappt die Insel von selbst auf
+  if (RestTimer.status === "done") islandExpanded = true;
+  renderIsland();
 };
-
-// Welche Einheit ist als nächste dran? Die nach der zuletzt trainierten
-// (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
-// Wurde noch nie trainiert, ist es die erste.
-function nextUnitId(plan) {
-  let lastIndex = -1;
-  let lastDate = null;
-  plan.units.forEach((unit, index) => {
-    const date = Store.getLastWorkoutDate(unit.id);
-    if (date && (!lastDate || date > lastDate)) {
-      lastDate = date;
-      lastIndex = index;
-    }
-  });
-  // % (Modulo) ergibt den Rest der Division: Nach der letzten Einheit -> 0
-  return plan.units[(lastIndex + 1) % plan.units.length].id;
-}
-
-// "Noch nie trainiert", "Zuletzt heute", "Zuletzt gestern", "Zuletzt vor 3 Tagen"
-function lastDoneText(date) {
-  if (!date) return "Noch nie trainiert";
-  // Kalendertage vergleichen, nicht Stunden: gestern 23 Uhr ist "gestern"
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const day = new Date(date);
-  day.setHours(0, 0, 0, 0);
-  const days = Math.round((today - day) / (24 * 60 * 60 * 1000));
-  if (days === 0) return "Zuletzt heute";
-  if (days === 1) return "Zuletzt gestern";
-  return `Zuletzt vor ${days} Tagen`;
-}
 
 // ===== Ansicht "Pläne" =====
 // Ebenen: Übersicht aller Pläne -> ein Plan -> eine Einheit -> Auswahl
