@@ -74,6 +74,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 
 - [x] 1. Grundgerüst und Navigation (Tab-Leiste unten, Ansichten über den #-Teil der Adresse)
 - [x] 2. Trainingsarten und Einheiten anzeigen (Ganzkörper, Upper/Lower, Push/Pull/Legs, Bro-Split; Vorlagen in `js/storage.js`)
+- [x] 3. Übungen pro Einheit anlegen (hinzufügen, löschen mit Rückfrage, Reihenfolge mit ↑/↓; noch nicht dauerhaft gespeichert, das folgt in Schritt 7)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
 

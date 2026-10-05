@@ -5,7 +5,7 @@
 // in derselben Ansicht.
 //
 // Unteransichten hängen wir mit "/" an: "#plaene/ppl" zeigt den Plan
-// mit der id "ppl".
+// mit der id "ppl", "#plaene/ppl/ppl-push" dessen Einheit "Push".
 
 // Titel, die in der Kopfzeile angezeigt werden
 const VIEW_TITLES = {
@@ -17,15 +17,16 @@ const VIEW_TITLES = {
 
 const DEFAULT_VIEW = "training";
 
-// Liest die Ansicht aus der Adresse: "#plaene/ppl" -> ["plaene", "ppl"]
+// Liest die Ansicht aus der Adresse:
+// "#plaene/ppl/ppl-push" -> viewName "plaene", params ["ppl", "ppl-push"]
 function parseHash() {
-  const [viewName, param] = location.hash.slice(1).split("/");
-  return { viewName: viewName || DEFAULT_VIEW, param };
+  const [viewName, ...params] = location.hash.slice(1).split("/");
+  return { viewName: viewName || DEFAULT_VIEW, params };
 }
 
 // Zeigt die Ansicht passend zur aktuellen Adresse
 function route() {
-  let { viewName, param } = parseHash();
+  let { viewName, params } = parseHash();
 
   // Unbekannter Name (z.B. Tippfehler in der Adresse)? Dann Startansicht.
   if (!VIEW_TITLES[viewName]) {
@@ -47,7 +48,7 @@ function route() {
 
   // Ansichten mit dynamischem Inhalt neu zeichnen
   if (viewName === "plaene") {
-    renderPlaene(param);
+    renderPlaene(params[0], params[1]);
   }
 
   // Nach jedem Wechsel nach oben scrollen
@@ -75,7 +76,8 @@ function escapeHtml(text) {
 }
 
 // ===== Ansicht "Pläne" =====
-function renderPlaene(planId) {
+// Drei Ebenen: Übersicht aller Pläne -> ein Plan -> eine Einheit
+function renderPlaene(planId, unitId) {
   const container = document.getElementById("view-plaene");
 
   // Kein Plan gewählt -> Übersicht aller Trainingsarten
@@ -84,15 +86,28 @@ function renderPlaene(planId) {
     return;
   }
 
-  // Plan gewählt -> Detailansicht mit seinen Einheiten
   const plan = Store.getPlan(planId);
   if (!plan) {
     // Plan existiert nicht (z.B. alte Adresse) -> zurück zur Übersicht
     location.hash = "plaene";
     return;
   }
-  setHeader(plan.name, "#plaene");
-  container.innerHTML = renderPlanDetail(plan);
+
+  // Nur Plan gewählt -> Detailansicht mit seinen Einheiten
+  if (!unitId) {
+    setHeader(plan.name, "#plaene");
+    container.innerHTML = renderPlanDetail(plan);
+    return;
+  }
+
+  // Einheit gewählt -> ihre Übungen anzeigen und bearbeiten
+  const unit = Store.getUnit(planId, unitId);
+  if (!unit) {
+    location.hash = "plaene/" + planId;
+    return;
+  }
+  setHeader(unit.name, "#plaene/" + planId);
+  container.innerHTML = renderUnitDetail(plan, unit);
 }
 
 // Übersicht: eine Karte pro Trainingsart
@@ -120,12 +135,15 @@ function renderPlanList(plans) {
 
 // Detailansicht: Beschreibung und Liste der Einheiten eines Plans
 function renderPlanDetail(plan) {
+  // Jede Zeile ist ein Link zur Einheit
   const rows = plan.units
     .map(
       (unit) => `
-        <li class="list-row">
-          <span class="list-title">${escapeHtml(unit.name)}</span>
-          <span class="list-meta">${exerciseCountText(unit.exercises.length)}</span>
+        <li>
+          <a class="list-row list-link" href="#plaene/${plan.id}/${unit.id}">
+            <span class="list-title">${escapeHtml(unit.name)}</span>
+            <span class="list-meta">${exerciseCountText(unit.exercises.length)} ›</span>
+          </a>
         </li>
       `
     )
@@ -138,11 +156,108 @@ function renderPlanDetail(plan) {
   `;
 }
 
+// Einheit: Liste der Übungen plus Formular zum Hinzufügen.
+// Die Knöpfe bekommen "data-"-Attribute. Darüber erkennt der
+// Klick-Behandler weiter unten, welcher Knopf für welche Übung gedrückt wurde.
+function renderUnitDetail(plan, unit) {
+  const count = unit.exercises.length;
+
+  const rows = unit.exercises
+    .map(
+      (exercise, index) => `
+        <li class="list-row">
+          <span class="list-title">${escapeHtml(exercise.name)}</span>
+          <span class="row-actions">
+            <button class="icon-button" data-action="move-up" data-id="${exercise.id}"
+              aria-label="Nach oben" ${index === 0 ? "disabled" : ""}>↑</button>
+            <button class="icon-button" data-action="move-down" data-id="${exercise.id}"
+              aria-label="Nach unten" ${index === count - 1 ? "disabled" : ""}>↓</button>
+            <button class="icon-button danger" data-action="delete" data-id="${exercise.id}"
+              aria-label="Löschen">✕</button>
+          </span>
+        </li>
+      `
+    )
+    .join("");
+
+  // Bei leerer Liste einen Hinweis statt einer leeren Box zeigen
+  const list =
+    count === 0
+      ? `<p class="placeholder">Noch keine Übungen. Füge unten die erste hinzu.</p>`
+      : `<ul class="list">${rows}</ul>`;
+
+  // Das Formular merkt sich in data-plan / data-unit, wohin die Übung gehört
+  return `
+    <p class="intro">${escapeHtml(plan.name)} · ${exerciseCountText(count)}</p>
+    ${list}
+    <form id="add-exercise-form" class="add-form" data-plan="${plan.id}" data-unit="${unit.id}">
+      <input type="text" name="name" class="text-input" placeholder="z.B. Bankdrücken"
+        autocomplete="off" required maxlength="60" aria-label="Name der Übung">
+      <button type="submit" class="button-primary">Hinzufügen</button>
+    </form>
+  `;
+}
+
 // "Keine Übungen", "1 Übung", "3 Übungen"
 function exerciseCountText(count) {
   if (count === 0) return "Noch keine Übungen";
   if (count === 1) return "1 Übung";
   return count + " Übungen";
+}
+
+// ===== Reaktionen auf Eingaben in der Pläne-Ansicht =====
+// Der Inhalt wird bei jeder Änderung neu gezeichnet, Knöpfe und Formular
+// sind danach also neue Elemente. Deshalb hängen wir die Behandler nicht an
+// die einzelnen Knöpfe, sondern EINMAL an den umgebenden Container.
+// Ein Klick "blubbert" vom Knopf nach oben bis zum Container
+// ("Event Delegation"), und dort schauen wir nach, was angetippt wurde.
+
+const plaeneView = document.getElementById("view-plaene");
+
+// Formular "Übung hinzufügen" abgeschickt (Knopf oder Enter-Taste)
+plaeneView.addEventListener("submit", (event) => {
+  event.preventDefault(); // Verhindert, dass der Browser die Seite neu lädt
+
+  const form = event.target;
+  const name = form.elements.name.value.trim(); // trim(): Leerzeichen am Rand weg
+  if (!name) return;
+
+  Store.addExercise(form.dataset.plan, form.dataset.unit, name);
+  rerenderPlaene();
+
+  // Das Eingabefeld wieder aktivieren, damit man direkt die nächste Übung
+  // eintippen kann
+  document.querySelector("#add-exercise-form input").focus();
+});
+
+// Knöpfe ↑ ↓ ✕ bei einer Übung
+plaeneView.addEventListener("click", (event) => {
+  // closest() sucht vom angetippten Element aufwärts den nächsten Knopf
+  // mit data-action (falls man z.B. genau auf das Symbol tippt)
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+
+  const [planId, unitId] = parseHash().params;
+  const exerciseId = button.dataset.id;
+
+  if (button.dataset.action === "move-up") {
+    Store.moveExercise(planId, unitId, exerciseId, -1);
+  } else if (button.dataset.action === "move-down") {
+    Store.moveExercise(planId, unitId, exerciseId, +1);
+  } else if (button.dataset.action === "delete") {
+    const exercise = Store.getUnit(planId, unitId).exercises.find((ex) => ex.id === exerciseId);
+    // confirm() zeigt den Standard-Dialog des iPhones mit "OK" / "Abbrechen"
+    if (!confirm(`„${exercise.name}“ aus dieser Einheit löschen?`)) return;
+    Store.removeExercise(planId, unitId, exerciseId);
+  }
+
+  rerenderPlaene();
+});
+
+// Zeichnet die Pläne-Ansicht neu, ohne nach oben zu scrollen
+function rerenderPlaene() {
+  const [planId, unitId] = parseHash().params;
+  renderPlaene(planId, unitId);
 }
 
 // ===== Start =====

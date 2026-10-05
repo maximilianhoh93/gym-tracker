@@ -70,4 +70,53 @@ const Store = {
     const plan = plans.find((p) => p.id === planId);
     return plan ? structuredClone(plan) : undefined;
   },
+
+  // Eine einzelne Einheit eines Plans (oder undefined)
+  getUnit(planId, unitId) {
+    const unit = findUnit(planId, unitId);
+    return unit ? structuredClone(unit) : undefined;
+  },
+
+  // Neue Übung ans Ende der Einheit anhängen
+  addExercise(planId, unitId, name) {
+    const unit = findUnit(planId, unitId);
+    if (!unit) return;
+    unit.exercises.push({ id: createId(), name: name });
+  },
+
+  // Übung aus der Einheit entfernen
+  removeExercise(planId, unitId, exerciseId) {
+    const unit = findUnit(planId, unitId);
+    if (!unit) return;
+    // filter() behält nur die Übungen, deren id NICHT die gesuchte ist
+    unit.exercises = unit.exercises.filter((ex) => ex.id !== exerciseId);
+  },
+
+  // Übung eine Position nach oben (-1) oder unten (+1) verschieben
+  moveExercise(planId, unitId, exerciseId, direction) {
+    const unit = findUnit(planId, unitId);
+    if (!unit) return;
+    const list = unit.exercises;
+    const from = list.findIndex((ex) => ex.id === exerciseId);
+    const to = from + direction;
+    // Nicht über den Anfang oder das Ende der Liste hinaus schieben
+    if (from === -1 || to < 0 || to >= list.length) return;
+    // Die beiden Übungen tauschen die Plätze
+    [list[from], list[to]] = [list[to], list[from]];
+  },
 };
+
+// ===== Interne Hilfsfunktionen (nur innerhalb dieser Datei benutzt) =====
+
+// Sucht die Einheit im echten Datenbestand (keine Kopie), damit wir sie
+// verändern können
+function findUnit(planId, unitId) {
+  const plan = plans.find((p) => p.id === planId);
+  return plan ? plan.units.find((u) => u.id === unitId) : undefined;
+}
+
+// Erzeugt eine eindeutige id für neue Einträge, z.B. "lx3k9a-4f2b".
+// Aus der aktuellen Zeit plus einer Zufallszahl, damit zwei ids nie gleich sind.
+function createId() {
+  return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6);
+}
