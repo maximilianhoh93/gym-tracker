@@ -101,7 +101,14 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Sprache: Deutsch.
 - Hell- und Dunkelmodus folgen automatisch der Systemeinstellung (`prefers-color-scheme`).
 - Mobile-first für das iPhone: große Tipp-Flächen, gut bedienbar mit einer Hand, Safe Areas beachten.
-- Optik angelehnt an Apple (iOS): Systemfarben, Systemschrift, abgerundete Karten.
+- Optik angelehnt an den klassischen iOS-Look, einheitlich über ein kleines Design-System in `css/styles.css`:
+  - Alle Farben und Maße als Variablen ganz oben (Apples Systemfarben für hell und dunkel: Hintergrund #f2f2f7 / #000, Karten weiß / #1c1c1e, Systemblau #007aff / #0a84ff, Text in drei Abstufungen). Regeln benutzen nur diese Variablen.
+  - Feste Bedeutung der Farben: Blau = antippbar, Grün = erledigt/läuft/an, Orange = Pausentimer, Gold/Eisblau/Lila nur für die Streak.
+  - Eine Abrundung für Listen, Karten und Knöpfe (12px), eine größere für Widgets (20px).
+  - Listen als gruppierte iOS-Listen: ein abgerundeter Block, Zeilen durch eingerückte Haarlinien getrennt, grauer Pfeil › rechts; Überschriften klein, grau, in Großbuchstaben.
+  - Drei Knopfarten: gefüllt (Hauptaktion), getönt (zarter Farbton, z.B. „+ Satz“), Text.
+  - Entfernen als graues ⓧ, Auswahl als blaues Häkchen rechts, Abhaken als Kreis links (wie Erinnerungen).
+  - Navigationsleiste wie iOS: Zurück-Link nennt das Ziel („‹ Pläne“), großer Titel im Inhalt, beim Scrollen kleiner Titel in einer verschwommenen Leiste.
 - Tab-Leiste wie bei iOS: schlichte Linien-Symbole (SVG) statt Emojis, einheitlich grau, der aktive Tab blau; leicht durchscheinender, verschwommener Hintergrund.
 - „Heute dran“ und „Aktiv“ werden nur als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
 - Hover-Effekte (Hervorhebung beim Darüberfahren mit der Maus) für Tabs, Karten und Knöpfe, aber nur auf Geräten mit Maus (`@media (hover: hover)`), damit sie auf dem iPhone nicht „kleben bleiben“.

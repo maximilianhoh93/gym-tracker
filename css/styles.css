@@ -1,47 +1,81 @@
-/* ===== Farben =====
-   Alle Farben stehen als "Variablen" an einer Stelle.
-   So müssen wir für den Dunkelmodus nur diese Werte austauschen. */
+/* =====================================================================
+   Gym-Tracker – Stylesheet im Stil von iOS
+   ---------------------------------------------------------------------
+   Aufbau:
+   1. Design-Variablen (Farben, Abrundungen) für Hell- und Dunkelmodus
+   2. Grundlagen und Navigationsleiste oben
+   3. Texte, Etiketten, Karten
+   4. Gruppierte Listen (wie in den iOS-Einstellungen)
+   5. Knöpfe und Eingabefelder
+   6. Einzelne Bereiche (Sätze, Timer, Startseite, Verlauf, Streak, ...)
+   7. Tab-Leiste unten, Hover-Effekte
+   ===================================================================== */
+
+/* ===== 1. Design-Variablen =====
+   Alle Farben und Maße stehen an EINER Stelle. Jede Regel weiter unten
+   benutzt nur diese Variablen. So bleibt das Design einheitlich, und für
+   den Dunkelmodus müssen nur diese Werte ausgetauscht werden.
+   Die Werte sind Apples Systemfarben aus iOS. */
 :root {
+  /* Hintergründe: grauer Seitenhintergrund, weiße Karten darauf */
   --bg: #f2f2f7;
   --surface: #ffffff;
-  --text: #1c1c1e;
-  --text-muted: #6e6e73;
-  --accent: #0a84ff;
-  --border: #d1d1d6;
-  --green: #34c759;  /* Apples Systemfarben, wie in der Timer-App */
-  --orange: #ff9500;
-  --gray-button: rgba(120, 120, 128, 0.16);
-  --tab-inactive: #8e8e93; /* Apples Systemgrau für inaktive Tabs */
-  --bar-bg: rgba(249, 249, 249, 0.82); /* Leicht durchscheinend */
-  --hover: rgba(120, 120, 128, 0.08); /* Hervorhebung beim Darüberfahren */
-  /* Streak-Farben im Duolingo-Stil. Gold etwas kräftiger als bei Duolingo
-     (#ffc800), weil das Original auf Weiß kaum zu sehen ist. */
+
+  /* Text in drei Abstufungen */
+  --text: #000000;
+  --text-muted: rgba(60, 60, 67, 0.6);
+  --text-tertiary: rgba(60, 60, 67, 0.3);
+
+  /* Linien und Flächen */
+  --separator: rgba(60, 60, 67, 0.29); /* Trennlinien in Listen */
+  --border: rgba(60, 60, 67, 0.18);
+  --gray-button: rgba(120, 120, 128, 0.12); /* graue Flächen, z.B. Knöpfe */
+  --fill-strong: rgba(120, 120, 128, 0.32);
+  --hover: rgba(120, 120, 128, 0.08);
+
+  /* Systemfarben mit fester Bedeutung */
+  --accent: #007aff; /* Blau: alles, was man antippen kann */
+  --green: #34c759; /* Grün: erledigt, läuft, an */
+  --orange: #ff9500; /* Orange: Pausentimer */
+  --red: #ff3b30;
+
+  /* Tab-Leiste und Navigationsleiste */
+  --tab-inactive: #8e8e93;
+  --bar-bg: rgba(249, 249, 249, 0.82);
+
+  /* Streak-Farben im Duolingo-Stil (siehe CLAUDE.md) */
   --streak-orange: #ff9600;
   --gold: #f0ab00;
   --gold-soft: rgba(255, 200, 0, 0.28);
   --ice: #1c9fe0;
   --ice-soft: rgba(28, 176, 246, 0.2);
-  --trained: #8e8e93; /* Trainingstag in einer noch laufenden Woche */
-  --vacation-soft: rgba(175, 82, 222, 0.16); /* Apples Lila, für Urlaubswochen */
+  --trained: #8e8e93;
+  --vacation-soft: rgba(175, 82, 222, 0.16);
   --vacation: #af52de;
+
+  /* Maße */
+  --radius: 12px; /* Listen, Karten, Knöpfe */
+  --radius-large: 20px; /* Widgets */
   --tab-height: 56px;
 }
 
-/* Dunkelmodus: greift automatisch, wenn das iPhone auf "Dunkel" steht */
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #000000;
     --surface: #1c1c1e;
-    --text: #f2f2f7;
-    --text-muted: #98989f;
+    --text: #ffffff;
+    --text-muted: rgba(235, 235, 245, 0.6);
+    --text-tertiary: rgba(235, 235, 245, 0.3);
+    --separator: rgba(84, 84, 88, 0.65);
+    --border: rgba(84, 84, 88, 0.65);
+    --gray-button: rgba(118, 118, 128, 0.24);
+    --fill-strong: rgba(118, 118, 128, 0.44);
+    --hover: rgba(118, 118, 128, 0.18);
     --accent: #0a84ff;
-    --border: #38383a;
     --green: #30d158;
     --orange: #ff9f0a;
-    --gray-button: rgba(120, 120, 128, 0.32);
-    --tab-inactive: #8e8e93;
-    --bar-bg: rgba(28, 28, 30, 0.82);
-    --hover: rgba(120, 120, 128, 0.18);
+    --red: #ff453a;
+    --bar-bg: rgba(29, 29, 31, 0.82);
     --gold: #ffc800;
     --gold-soft: rgba(255, 200, 0, 0.22);
     --ice: #1cb0f6;
@@ -52,13 +86,13 @@
   }
 }
 
-/* ===== Grundeinstellungen ===== */
+/* ===== 2. Grundlagen ===== */
 * {
   box-sizing: border-box; /* Breite inklusive Innenabstand berechnen, das ist intuitiver */
 }
 
 /* Elemente mit dem Attribut "hidden" immer verstecken, auch wenn eine
-   andere Regel ihnen z.B. "display: inline-block" gibt */
+   andere Regel ihnen z.B. "display: flex" gibt */
 [hidden] {
   display: none !important;
 }
@@ -68,153 +102,199 @@ body {
   background: var(--bg);
   color: var(--text);
   /* Die Systemschrift des iPhones (San Francisco) */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   font-size: 17px;
-  line-height: 1.4;
+  line-height: 1.3;
+  letter-spacing: -0.2px; /* Apple setzt Fließtext minimal enger */
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent; /* Kein grauer Blitz beim Antippen */
 }
 
-/* ===== Kopfzeile ===== */
+/* ===== Navigationsleiste oben =====
+   Wie bei iOS: oben eine schmale Leiste (Zurück-Link, kleiner Titel),
+   darunter im Inhalt der große Titel. Beim Scrollen bekommt die Leiste
+   einen verschwommenen Hintergrund und zeigt den kleinen Titel. */
 .app-header {
   position: sticky; /* Bleibt beim Scrollen oben stehen */
   top: 0;
   z-index: 10;
-  background: var(--bg);
-  /* env(safe-area-inset-top): Abstand zur Notch bzw. Dynamic Island */
-  padding: calc(env(safe-area-inset-top) + 12px) 16px 8px;
-}
-
-.app-header h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-}
-
-/* ===== Inhalt ===== */
-.app-main {
-  padding: 8px 16px;
-  /* Unten Platz lassen, damit nichts hinter der Navigationsleiste verschwindet */
-  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 16px);
-}
-
-.placeholder {
-  color: var(--text-muted);
-}
-
-/* ===== Navigationsleiste unten (im Stil der iOS-Tab-Leiste) ===== */
-.tab-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
   display: flex;
-  padding: 0 8px env(safe-area-inset-bottom); /* Abstand zum Home-Balken */
-  /* Durchscheinender, verschwommener Hintergrund wie bei iOS:
-     Inhalt, der darunter durchscrollt, schimmert unscharf durch */
+  align-items: center;
+  height: calc(env(safe-area-inset-top) + 44px);
+  /* env(safe-area-inset-top): Abstand zur Notch bzw. Dynamic Island */
+  padding: env(safe-area-inset-top) 8px 0;
+  border-bottom: 0.5px solid transparent;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+body.scrolled .app-header {
   background: var(--bar-bg);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  /* Hauchdünne Trennlinie (0.5px wirkt auf dem iPhone wie bei Apple) */
-  border-top: 0.5px solid var(--border);
+  border-bottom-color: var(--separator);
 }
 
-.tab {
-  flex: 1; /* Alle Tabs gleich breit */
-  height: var(--tab-height);
+.back-link {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  margin: 4px 2px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: var(--tab-inactive);
+  gap: 5px;
+  height: 44px; /* 44px: Apples Mindesthöhe für Tipp-Flächen */
+  padding: 0 8px;
+  color: var(--accent);
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
 }
 
-/* Linien-Symbol; Farbe kommt über "currentColor" vom Tab */
-.tab-icon {
-  width: 26px;
-  height: 26px;
+/* Der Zurück-Pfeil als dünne Linie wie bei iOS */
+.back-chevron {
+  width: 11px;
+  height: 19px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.7;
+  stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* Der aktive Tab: blau und mit etwas kräftigeren Linien */
-.tab.active {
-  color: var(--accent);
+/* Kleiner Titel in der Mitte, erst sichtbar nach dem Scrollen */
+.nav-title {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  max-width: 55%;
+  transform: translateX(-50%);
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.tab.active .tab-icon {
-  stroke-width: 2.1;
+body.scrolled .nav-title {
+  opacity: 1;
 }
 
-/* Kurzes Feedback beim Antippen */
-.tab:active .tab-icon {
-  transform: scale(0.9);
+/* Großer Titel oben im Inhalt */
+.large-title {
+  margin: 0 0 12px;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.3px;
 }
 
-/* ===== Zurück-Link in der Kopfzeile ===== */
-.back-link {
-  display: inline-block;
-  /* Große Tipp-Fläche: mindestens 44px hoch (Apple-Empfehlung) */
-  min-height: 44px;
-  padding: 10px 0;
-  color: var(--accent);
-  text-decoration: none;
+/* ===== Inhalt ===== */
+.app-main {
+  padding: 0 16px;
+  /* Unten Platz lassen, damit nichts hinter der Tab-Leiste verschwindet */
+  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 24px);
 }
 
-/* ===== Texte ===== */
+/* ===== 3. Texte ===== */
 .intro {
   margin: 0 0 16px;
-  color: var(--text-muted);
-}
-
-.section-title {
-  margin: 24px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-/* ===== Karten (z.B. eine Trainingsart) ===== */
-.card {
-  display: block;
-  margin-bottom: 12px;
-  padding: 16px;
-  background: var(--surface);
-  border-radius: 14px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-/* Kurzes Feedback beim Antippen */
-.card-link:active {
-  opacity: 0.6;
-}
-
-.card-title {
-  margin: 0 0 4px;
-  font-size: 20px;
-}
-
-.card-text {
-  margin: 0 0 12px;
   font-size: 15px;
   color: var(--text-muted);
 }
 
-/* Kleine "Etiketten" für die Namen der Einheiten */
+.intro a,
+.hint a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.placeholder {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+
+/* Überschrift über einer Liste, wie in den iOS-Einstellungen */
+.section-title {
+  margin: 26px 16px 7px;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+/* Kleiner Hinweistext unter einer Liste */
+.hint,
+.settings-hint {
+  margin: 7px 16px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.last-time {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.last-time strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ===== Etiketten (z.B. "Heute dran", "Aktiv") =====
+   "Getönt": zarter Hintergrund in der Farbe, Schrift in der Farbe.
+   color-mix mischt die Farbe mit Durchsichtigkeit. */
+.badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
+.badge.running,
+.done-badge {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  color: var(--green);
+}
+
+.card-title .badge,
+.intro .badge {
+  margin-left: 6px;
+}
+
+.active-note {
+  margin: 0 0 8px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* ===== Karten (z.B. eine Trainingsart in "Pläne") ===== */
+.card {
+  display: block;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card-title {
+  margin: 0 0 3px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.card-text {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap; /* Bei Platzmangel in die nächste Zeile umbrechen */
@@ -222,109 +302,130 @@ body {
 }
 
 .chip {
-  padding: 4px 10px;
-  border-radius: 999px; /* Ganz runde Enden */
-  background: var(--bg);
-  font-size: 14px;
-}
-
-/* ===== Aktiver Plan ===== */
-/* Kleines farbiges Etikett, z.B. "Aktiv" oder "Heute dran" */
-.badge {
-  flex-shrink: 0;
-  display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
-  background: var(--accent);
-  color: #ffffff;
+  background: var(--gray-button);
   font-size: 13px;
-  font-weight: 600;
-  vertical-align: middle;
 }
 
-.card-title .badge {
-  margin-left: 6px;
-}
-
-
-.active-note {
-  margin: 0 0 8px;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* Links im Einleitungstext (z.B. "Plan bearbeiten") */
-.intro a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-/* ===== Runder Symbol-Knopf (z.B. ✕) ===== */
-.icon-button {
-  flex-shrink: 0; /* Nie zusammenquetschen, lieber den Text umbrechen */
-  width: 44px;  /* 44 × 44 px: Apples Mindestgröße für Tipp-Flächen */
-  height: 44px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.icon-button:active {
-  background: var(--bg);
-}
-
-.icon-button.danger {
-  color: #ff3b30; /* Apples Rot für "Löschen" */
-}
-
-/* ===== Übungs-Kästchen ===== */
+/* ===== 4. Gruppierte Listen =====
+   Ein abgerundeter weißer Block, die Zeilen getrennt durch hauchdünne
+   Linien, die links eingerückt beginnen (wie bei iOS). */
 .card-list {
   position: relative; /* Bezugspunkt für das Verschieben beim Ziehen */
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Ecken der ersten und letzten Zeile mitrunden */
   list-style: none;
+  background: var(--surface);
+  border-radius: var(--radius);
 }
 
+.card-list > li {
+  position: relative;
+}
+
+/* Trennlinie über jeder Zeile außer der ersten. ::before ist ein
+   "unsichtbares Extra-Element", das wir als Linie zeichnen. */
+.card-list > li + li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--separator-inset, 16px);
+  z-index: 1;
+  height: 0.5px;
+  background: var(--separator);
+}
+
+/* Listen mit Kreis links: Linie beginnt erst nach dem Kreis */
+.card-list:has(.workout-card) {
+  --separator-inset: 60px;
+}
+
+/* Eine Zeile in einer Liste */
 .exercise-card {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
-  min-height: 60px;
-  padding: 8px 8px 8px 16px;
-  background: var(--surface);
+  min-height: 54px;
+  padding: 9px 12px 9px 16px;
   border: none;
-  border-radius: 18px; /* Deutlich abgerundete Ecken */
+  background: var(--surface);
   color: var(--text);
   font: inherit;
+  letter-spacing: inherit;
   text-align: left;
+  text-decoration: none;
   /* Langes Drücken soll keinen Text markieren */
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Name und Muskelgruppe untereinander, nehmen den restlichen Platz ein */
-.exercise-info {
+/* Name und zweite Zeile untereinander, nehmen den restlichen Platz ein */
+.exercise-info,
+.card-main {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
+}
+
+.card-main {
+  align-self: stretch;
+  justify-content: center;
+  color: var(--text);
+  text-decoration: none;
 }
 
 .exercise-name {
   flex: 1;
-  font-weight: 500;
 }
 
 .exercise-meta {
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* Pfeil rechts in antippbaren Zeilen, hellgrau wie bei iOS */
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Graues ⓧ zum Entfernen */
+.icon-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.icon-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.icon-button circle {
+  fill: var(--fill-strong);
+}
+
+.icon-button path {
+  stroke: var(--surface);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /* Griff zum Ziehen */
@@ -333,10 +434,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  color: var(--text-muted);
-  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  font-size: 22px;
   cursor: grab;
   /* Wichtig fürs iPhone: Ziehen am Griff soll NICHT die Seite scrollen */
   touch-action: none;
@@ -344,52 +446,313 @@ body {
   -webkit-user-select: none;
 }
 
-/* Das Kästchen, das gerade gezogen wird, "schwebt" über den anderen */
+/* Die Zeile, die gerade gezogen wird, "schwebt" über den anderen */
 .exercise-card.dragging {
-  position: relative;
   z-index: 5;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   cursor: grabbing;
 }
 
-/* Auswahl-Kästchen: das ganze Kästchen ist antippbar */
-.pick-card {
-  padding-right: 16px;
-  cursor: pointer;
+/* Einheiten auf der Startseite: etwas größer, wichtigste Tipp-Fläche */
+.unit-card {
+  min-height: 64px;
+  transition: box-shadow 0.15s;
 }
 
-.pick-card:active {
-  opacity: 0.6;
+.unit-card .exercise-name {
+  font-size: 20px;
+  font-weight: 600;
 }
 
-/* Kreis rechts, gefüllt mit ✓ wenn ausgewählt */
-.check {
+/* Beim Antippen bzw. Darüberfahren: blauer Rahmen um die gewählte Einheit.
+   inset = der Rahmen liegt innen, die Zeile wird nicht größer. */
+.unit-card:active {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Abhaken: Kreis links wie in der Erinnerungen-App */
+.workout-card {
+  padding-left: 6px;
+}
+
+.check-button {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 2px solid var(--border);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--text-tertiary);
   border-radius: 50%;
   color: #ffffff;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.check-button:active .check {
+  transform: scale(0.85);
+}
+
+.workout-card.done .check {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.workout-card.done .exercise-name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.workout-card.skipped .exercise-name,
+.workout-card.skipped .exercise-meta {
+  color: var(--text-muted);
+}
+
+.workout-card.skipped .exercise-meta {
+  font-style: italic;
+}
+
+/* ↺ zum Zurückholen einer übersprungenen Übung */
+.restore {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gray-button);
+  color: var(--accent);
+  font-size: 15px;
   font-weight: 700;
 }
 
-.pick-card.selected .check {
-  background: var(--accent);
-  border-color: var(--accent);
+/* Auswahl aus dem Pool: blaues Häkchen rechts wie in iOS-Auswahllisten */
+.pick-card {
+  cursor: pointer;
 }
 
-.hint {
-  margin: 8px 0 0;
-  font-size: 14px;
-  color: var(--text-muted);
+.checkmark {
+  flex-shrink: 0;
+  width: 22px;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
   text-align: center;
 }
 
-/* ===== Formular "Neue Übung anlegen" ===== */
+/* Einzelne Zeile mit Pfeil, z.B. "Nächste Übung ... ›" */
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 50px;
+  margin-top: 16px;
+  padding: 0 12px 0 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-row-label {
+  flex-shrink: 0;
+}
+
+.nav-row-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+  text-overflow: ellipsis; /* Zu langen Namen mit "…" abschneiden */
+}
+
+.nav-row:not(:has(.nav-row-value)) .nav-row-label {
+  flex: 1; /* Ohne Wert rechts: Text nimmt den Platz ein */
+}
+
+/* ===== 5. Knöpfe =====
+   Drei Arten wie bei Apple:
+   - gefüllt (button-primary): die eine Hauptaktion
+   - getönt (button-secondary, pill-button, ...): zarter Hintergrund
+   - Text (text-button): nur blaue Schrift */
+.button-primary {
+  height: 50px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-wide {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.button-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  margin-top: 16px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pill-button {
+  flex: 1;
+  height: 44px;
+  border: none;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-button {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin-top: 12px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* Runder grauer Knopf, z.B. − und + */
+.step-button {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--gray-button);
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Gemeinsames Verhalten aller Knöpfe */
+.button-primary:active,
+.button-secondary:active,
+.pill-button:active,
+.text-button:active,
+.step-button:active,
+.card-link:active,
+.nav-row:active {
+  opacity: 0.6;
+}
+
+.pill-button:disabled,
+.step-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Umschalter "Gewicht | Volumen" im Apple-Stil */
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--gray-button);
+}
+
+.segmented button {
+  flex: 1;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segmented button.selected {
+  background: var(--surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .segmented button.selected {
+    background: #636366; /* In iOS ist der gewählte Teil im Dunkeln grau */
+  }
+}
+
+/* Ein/Aus-Schalter im iOS-Stil: Pille mit weißem Kreis, der zur Seite gleitet */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  border: none;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.switch.on {
+  background: var(--green);
+}
+
+.switch.on::after {
+  transform: translateX(20px);
+}
+
+/* ===== Eingabefelder (Formular "Neue Übung anlegen") ===== */
 .exercise-form {
   display: flex;
   flex-direction: column;
@@ -406,135 +769,61 @@ body {
 .select-input {
   min-width: 0;
   height: 48px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   /* Mindestens 16px, sonst zoomt Safari beim Antippen ins Feld hinein */
   font-size: 17px;
   font-family: inherit;
+  letter-spacing: inherit;
+}
+
+.text-input::placeholder {
+  color: var(--text-tertiary);
 }
 
 .select-input {
-  flex: 1; /* Nimmt den Platz neben dem Knopf ein */
+  flex: 1;
+  /* Eigener Pfeil statt des Browser-Standards */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px 8px;
 }
 
 .text-input:focus,
 .select-input:focus {
-  outline: 2px solid var(--accent);
-  border-color: transparent;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
-/* ===== Knöpfe ===== */
-.button-primary {
+.form-row .button-primary {
   height: 48px;
-  padding: 0 18px;
-  border: none;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #ffffff;
-  font-size: 17px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
 }
 
-.button-primary:active {
-  opacity: 0.7;
-}
-
-/* Zweitrangiger Knopf über die ganze Breite (hier als Link) */
-.button-secondary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 52px;
-  margin-top: 16px;
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.button-secondary:active {
-  opacity: 0.6;
-}
-
-/* Knopf über die ganze Breite */
-.button-wide {
-  width: 100%;
-  height: 52px;
-  margin-bottom: 8px;
-}
-
-/* ===== Kästchen mit Link und Griff (Einheiten eines Plans) ===== */
-/* Der Link nimmt den ganzen Platz links neben dem Griff ein */
-.card-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  align-self: stretch;
-  justify-content: center;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.card-main:active {
-  opacity: 0.6;
-}
-
-/* ===== Einheiten auf der Trainingsseite ===== */
-.unit-card {
-  min-height: 76px; /* Extra groß: Das ist die wichtigste Tipp-Fläche */
-  padding-right: 12px;
-  text-decoration: none;
-}
-
-.unit-card .exercise-name {
-  font-size: 20px;
-  font-weight: 600;
-}
-
-/* Beim Antippen (iPhone) bzw. Darüberfahren (Maus, siehe unten) bekommt
-   die Einheit einen blauen Rahmen: So sieht man, welche man gerade wählt.
-   inset = der Rahmen liegt innen, das Kästchen wird also nicht größer. */
-.unit-card {
-  transition: box-shadow 0.15s;
-}
-
-.unit-card:active {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
-
-.chevron {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  font-size: 24px;
-}
-
-/* ===== Sätze einer Übung ===== */
+/* ===== 6. Sätze einer Übung ===== */
 .sets-card {
-  padding: 8px 12px;
+  padding: 6px 12px 10px;
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: var(--radius);
 }
 
 /* Drei Spalten: schmale Satznummer, dann zwei gleich breite Eingabefelder.
    "grid" ordnet Elemente in Spalten an wie eine Tabelle. */
 .set-row {
   display: grid;
-  grid-template-columns: 44px 1fr 1fr;
+  grid-template-columns: 36px 1fr 1fr;
   gap: 8px;
   align-items: center;
   padding: 4px 0;
 }
 
 .set-header {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -545,11 +834,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   margin: 0 auto;
   border-radius: 50%;
   background: var(--gray-button);
+  font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -557,107 +847,135 @@ body {
 .set-input {
   width: 100%;
   min-width: 0;
-  height: 48px;
+  height: 44px;
   border: none;
-  border-radius: 12px;
-  background: var(--bg);
+  border-radius: 10px;
+  background: var(--gray-button);
   color: var(--text);
-  /* Mindestens 16px, sonst zoomt Safari beim Antippen ins Feld hinein */
   font-size: 20px;
   font-weight: 600;
   font-family: inherit;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: tabular-nums; /* Alle Ziffern gleich breit */
   text-align: center;
 }
 
 .set-input::placeholder {
-  color: var(--text-muted);
-  opacity: 0.5;
+  color: var(--text-tertiary);
   font-weight: 400;
 }
 
 .set-input:focus {
-  outline: 2px solid var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 /* "− Satz" und "+ Satz" nebeneinander */
 .set-buttons {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
-}
-
-.pill-button {
-  flex: 1;
-  height: 44px;
-  border: none;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--accent);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.pill-button:active {
-  opacity: 0.6;
-}
-
-.pill-button:disabled {
-  opacity: 0.4;
-  cursor: default;
+  margin-top: 12px;
 }
 
 /* ===== Schmale Timer-Zeile unter den Sätzen ===== */
 .timer-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-height: 52px;
   margin-top: 16px;
-  padding: 8px 8px 8px 16px;
+  padding: 8px 10px 8px 16px;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .timer-row-title {
   flex: 1; /* Schiebt die Bedienelemente nach rechts */
-  color: var(--text-muted);
 }
 
 .rest-value {
-  min-width: 48px;
+  min-width: 46px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums; /* Alle Ziffern gleich breit */
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-.step-button {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 50%;
-  background: var(--gray-button);
-  color: var(--text);
-  font: inherit;
-  font-size: 18px;
-  cursor: pointer;
-}
-
 .timer-start-button {
-  height: 36px;
-  padding: 0 16px;
+  height: 32px;
+  padding: 0 14px;
   border: none;
   border-radius: 999px;
-  background: var(--gray-button);
+  background: color-mix(in srgb, var(--orange) 16%, transparent);
   color: var(--orange);
   font: inherit;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.step-button:active,
 .timer-start-button:active {
   opacity: 0.6;
+}
+
+/* ===== Trainingsseite einer Einheit ===== */
+/* Fortschritt und "Training beenden" oben */
+.workout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.workout-top .intro {
+  margin: 0;
+}
+
+.finish-button {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Alle Übungen erledigt: grün gefüllt */
+.finish-button.ready {
+  background: var(--green);
+  color: #ffffff;
+}
+
+.finish-button:active {
+  opacity: 0.6;
+}
+
+.all-done {
+  margin: 0;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Hinweis-Karte, wenn eine Übung übersprungen ist */
+.skipped-note {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.skipped-note p {
+  margin: 0;
+  color: var(--text-muted);
 }
 
 /* ===== Timer-Widget oben links ===== */
@@ -854,194 +1172,6 @@ body.has-island .back-link {
   50%      { box-shadow: 0 0 0 4px rgba(255, 159, 10, 0.55); }
 }
 
-/* ===== Abhaken auf der Trainingsseite ===== */
-.workout-card {
-  padding-left: 4px;
-  padding-right: 12px;
-}
-
-/* Große, unsichtbare Tipp-Fläche um den Kreis herum */
-.check-button {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-.check-button:active .check {
-  transform: scale(0.85);
-}
-
-.check {
-  transition: transform 0.1s, background 0.2s;
-}
-
-/* Abgehakt: grüner Kreis, Name durchgestrichen, alles etwas blasser */
-.workout-card.done .check {
-  background: var(--green);
-  border-color: var(--green);
-}
-
-.workout-card.done .exercise-name {
-  text-decoration: line-through;
-  color: var(--text-muted);
-}
-
-.workout-card.done .card-main,
-.workout-card.done .chevron {
-  opacity: 0.6;
-}
-
-.all-done {
-  margin: 8px 0 0;
-  padding: 16px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--green) 15%, var(--surface));
-  font-weight: 600;
-  text-align: center;
-}
-
-/* "Training beenden" als <button> (button-secondary war bisher nur für Links) */
-button.button-secondary {
-  width: 100%;
-  border: none;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Fortschritt und "Training beenden" oben auf der Trainingsseite */
-.workout-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.workout-top .intro {
-  margin: 0;
-}
-
-.finish-button {
-  flex-shrink: 0;
-  height: 36px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 999px;
-  background: var(--gray-button);
-  color: var(--accent);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Alle Übungen erledigt: grün hervorheben */
-.finish-button.ready {
-  background: var(--green);
-  color: #ffffff;
-}
-
-.finish-button:active {
-  opacity: 0.6;
-}
-
-/* Dauer der Gleit-Animation beim Abhaken (View Transitions) */
-::view-transition-group(*) {
-  animation-duration: 0.35s;
-  animation-timing-function: cubic-bezier(0.3, 1, 0.4, 1);
-}
-
-/* ===== Überspringen und "Letztes Mal" ===== */
-/* Übersprungene Übungen: blass, kursiv, mit ↺ statt Haken */
-.workout-card.skipped .card-main,
-.workout-card.skipped .chevron {
-  opacity: 0.5;
-}
-
-.workout-card.skipped .exercise-meta {
-  font-style: italic;
-}
-
-.restore {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--gray-button);
-  color: var(--accent);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-/* Kleines grünes Etikett "✓ Erledigt" auf der Übungsseite */
-.done-badge {
-  margin-left: 6px;
-  background: var(--green);
-}
-
-/* Zeile "Letztes Mal (05.10.): 62,5 kg × 10 · 8" über den Sätzen */
-.last-time {
-  margin: 0 0 8px;
-  font-size: 15px;
-  color: var(--text-muted);
-}
-
-.last-time strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
-/* Hinweis-Karte, wenn eine Übung übersprungen ist */
-.skipped-note {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: var(--surface);
-  border-radius: 18px;
-}
-
-.skipped-note p {
-  margin: 0;
-  color: var(--text-muted);
-}
-
-/* Unauffälliger Text-Knopf, z.B. "Heute überspringen" */
-.text-button {
-  display: block;
-  width: 100%;
-  height: 44px;
-  margin-top: 8px;
-  border: none;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 15px;
-  cursor: pointer;
-}
-
-.text-button:active {
-  opacity: 0.6;
-}
-
-/* "Läuft" auf der Startseite: Training ist begonnen, aber nicht beendet */
-.badge.running {
-  background: var(--green);
-}
-
-.hint a {
-  color: var(--accent);
-  text-decoration: none;
-}
 
 /* ===== Widgets auf der Startseite ===== */
 /* Waagerecht wischbar. scroll-snap lässt jedes Widget beim Loslassen
@@ -1070,7 +1200,7 @@ button.button-secondary {
   min-height: 150px;
   padding: 16px;
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--radius-large);
 }
 
 .widget-title {
@@ -1287,38 +1417,12 @@ button.button-secondary {
   background: var(--text-muted);
 }
 
+
 /* ===== Verlauf einer Übung ===== */
 .history-card {
   padding: 12px 12px 16px;
   background: var(--surface);
-  border-radius: 18px;
-}
-
-/* Umschalter "Gewicht | Volumen" im Apple-Stil */
-.segmented {
-  display: flex;
-  padding: 2px;
-  border-radius: 9px;
-  background: var(--gray-button);
-}
-
-.segmented button {
-  flex: 1;
-  height: 32px;
-  border: none;
-  border-radius: 7px;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.segmented button.selected {
-  background: var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  font-weight: 600;
+  border-radius: var(--radius);
 }
 
 .chart-caption {
@@ -1421,23 +1525,34 @@ button.button-secondary {
 }
 
 /* Liste der letzten Trainings: Datum | Sätze | Volumen */
+/* Als gruppierte Liste wie überall sonst */
 .history-list {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
+  background: var(--surface);
+  border-radius: var(--radius);
 }
 
 .history-row {
+  position: relative;
   display: grid;
   grid-template-columns: 48px 1fr auto;
   gap: 8px;
-  padding: 8px 4px;
-  font-size: 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  font-size: 15px;
 }
 
-.history-row:last-child {
-  border-bottom: none;
+/* Trennlinie, eingerückt wie in den anderen Listen */
+.history-row + .history-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 0.5px;
+  background: var(--separator);
 }
 
 .history-date,
@@ -1446,56 +1561,6 @@ button.button-secondary {
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== Hover: Hervorhebung beim Darüberfahren mit der Maus =====
-   Nur auf Geräten mit Maus oder Trackpad. Auf dem iPhone würde der
-   Effekt nach dem Antippen "kleben bleiben", deshalb diese Abfrage. */
-@media (hover: hover) {
-  .tab:hover {
-    background: var(--hover);
-  }
-
-  .tab:not(.active):hover {
-    color: var(--text);
-  }
-
-  /* Karten und Zeilen, die man antippen kann */
-  .unit-card:hover {
-    box-shadow: inset 0 0 0 2px var(--accent);
-  }
-
-  .card-link:hover,
-  .pick-card:hover,
-  .exercise-card:has(.card-main:hover),
-  .button-secondary:hover,
-  .pill-button:not(:disabled):hover {
-    background: color-mix(in srgb, var(--surface) 95%, var(--text)); /* Kartenfarbe, 5 % zur Textfarbe hin */
-  }
-
-  .icon-button:hover,
-  .step-button:hover,
-  .timer-start-button:hover,
-  .finish-button:not(.ready):hover,
-  .preset:hover,
-  .text-button:hover,
-  .check-button:hover .check,
-  .drag-handle:hover {
-    background-color: var(--hover);
-  }
-
-  .back-link:hover,
-  .hint a:hover,
-  .intro a:hover {
-    opacity: 0.7;
-  }
-
-  .month-item summary:hover {
-    background: var(--hover);
-  }
-
-  .dot:hover::before {
-    background: var(--text-muted);
-  }
-}
 
 /* ===== Wochen-Streak ===== */
 .streak-head {
@@ -1658,6 +1723,7 @@ button.button-secondary {
   color: #ffffff;
 }
 
+
 /* ===== Tab "Einstellungen" ===== */
 /* Eine Zeile wie in den iOS-Einstellungen: Text links, Bedienelement rechts */
 .settings-row {
@@ -1667,7 +1733,7 @@ button.button-secondary {
   min-height: 56px;
   padding: 8px 12px 8px 16px;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .settings-label {
@@ -1681,12 +1747,6 @@ button.button-secondary {
   color: var(--text-muted);
 }
 
-.settings-hint {
-  margin: 6px 16px 0;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
 .goal-value {
   min-width: 24px;
   font-size: 20px;
@@ -1694,57 +1754,18 @@ button.button-secondary {
   text-align: center;
 }
 
-/* Ein/Aus-Schalter im iOS-Stil: Pille mit weißem Kreis, der zur Seite gleitet */
-.switch {
-  position: relative;
-  flex-shrink: 0;
-  width: 51px;
-  height: 31px;
-  border: none;
-  border-radius: 999px;
-  background: var(--gray-button);
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.switch::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s;
-}
-
-.switch.on {
-  background: var(--green);
-}
-
-.switch.on::after {
-  transform: translateX(20px);
-}
-
-.step-button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
 .streak-stats {
   grid-template-columns: repeat(2, 1fr); /* Zwei Kennzahlen nebeneinander */
   padding: 14px 8px;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 10px;
+  gap: 6px 14px;
+  margin: 0 16px 10px;
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -1781,7 +1802,7 @@ button.button-secondary {
 .month-list {
   overflow: hidden;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
 .month-item + .month-item {
@@ -1816,7 +1837,7 @@ button.button-secondary {
 
 .month-name {
   flex: 1;
-  font-weight: 600;
+  font-weight: 400;
   white-space: nowrap; /* "September 2026" nicht umbrechen */
 }
 
@@ -1838,4 +1859,125 @@ button.button-secondary {
   font-size: 11px;
   color: var(--text-muted);
   text-align: center;
+}
+
+/* ===== 7. Tab-Leiste unten (im Stil der iOS-Tab-Leiste) ===== */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  padding: 0 8px env(safe-area-inset-bottom); /* Abstand zum Home-Balken */
+  /* Durchscheinender, verschwommener Hintergrund wie bei iOS */
+  background: var(--bar-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--separator);
+}
+
+.tab {
+  flex: 1; /* Alle Tabs gleich breit */
+  height: var(--tab-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin: 4px 2px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  color: var(--tab-inactive);
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+}
+
+/* Linien-Symbol; Farbe kommt über "currentColor" vom Tab */
+.tab-icon {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab.active {
+  color: var(--accent);
+}
+
+.tab.active .tab-icon {
+  stroke-width: 2.1;
+}
+
+.tab:active .tab-icon {
+  transform: scale(0.9);
+}
+
+/* ===== Hover: Hervorhebung beim Darüberfahren mit der Maus =====
+   Nur auf Geräten mit Maus oder Trackpad. Auf dem iPhone würde der
+   Effekt nach dem Antippen "kleben bleiben", deshalb diese Abfrage. */
+@media (hover: hover) {
+  .tab:hover {
+    background: var(--hover);
+  }
+
+  .tab:not(.active):hover {
+    color: var(--text);
+  }
+
+  /* Zeilen und Karten: leicht grau hinterlegt */
+  .card-link:hover,
+  .pick-card:hover,
+  .exercise-card:has(.card-main:hover),
+  .nav-row:hover,
+  .month-item summary:hover {
+    background: color-mix(in srgb, var(--surface) 94%, var(--text));
+  }
+
+  /* Einheiten auf der Startseite: blauer Rahmen */
+  .unit-card:hover {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
+  /* Getönte Knöpfe: etwas kräftiger */
+  .button-secondary:hover,
+  .pill-button:not(:disabled):hover,
+  .finish-button:not(.ready):hover {
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  }
+
+  .button-primary:hover,
+  .finish-button.ready:hover {
+    filter: brightness(1.08);
+  }
+
+  .step-button:not(:disabled):hover,
+  .goal-option:hover,
+  .drag-handle:hover,
+  .icon-button:hover,
+  .check-button:hover,
+  .text-button:hover {
+    background-color: var(--hover);
+  }
+
+  .back-link:hover,
+  .hint a:hover,
+  .intro a:hover {
+    opacity: 0.7;
+  }
+
+  .dot:hover::before {
+    background: var(--text-muted);
+  }
+}
+
+/* Dauer der Gleit-Animation beim Abhaken (View Transitions) */
+::view-transition-group(*) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.3, 1, 0.4, 1);
 }

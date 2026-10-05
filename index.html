@@ -11,15 +11,23 @@
 </head>
 <body>
   <!-- Kopfzeile mit dem Titel der aktuellen Ansicht -->
+  <!-- Navigationsleiste oben wie bei iOS: links der Zurück-Link mit dem Namen
+       des Ziels, in der Mitte ein kleiner Titel. Der kleine Titel erscheint
+       erst, wenn der große Titel beim Scrollen verschwindet. -->
   <header class="app-header">
-    <!-- Zurück-Link, nur in Unteransichten sichtbar (z.B. in einem Plan) -->
-    <a id="back-link" class="back-link" href="#" hidden>‹ Zurück</a>
-    <h1 id="view-title">Startseite</h1>
+    <a id="back-link" class="back-link" href="#" hidden>
+      <svg class="back-chevron" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2 2 10l8 8"/></svg>
+      <span id="back-label">Zurück</span>
+    </a>
+    <span id="nav-title" class="nav-title" aria-hidden="true"></span>
   </header>
 
   <!-- Hauptbereich: Jede Ansicht ist ein eigener <section>-Block.
        Es ist immer nur einer sichtbar, die anderen haben das Attribut "hidden". -->
   <main class="app-main">
+    <!-- Großer Titel, scrollt mit dem Inhalt nach oben weg -->
+    <h1 id="view-title" class="large-title">Startseite</h1>
+
     <!-- Der Inhalt dieser Ansichten wird von js/app.js eingefüllt -->
     <section id="view-start" class="view"></section>
 

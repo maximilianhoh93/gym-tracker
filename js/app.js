@@ -75,17 +75,29 @@ function renderCurrentView() {
   }
 }
 
-// Setzt den Titel und optional einen Zurück-Link in der Kopfzeile
-function setHeader(title, backHref) {
+// Setzt den Titel (groß im Inhalt und klein in der Leiste) und optional
+// einen Zurück-Link. backLabel ist der Name des Ziels, z.B. "Pläne".
+function setHeader(title, backHref, backLabel = "Zurück") {
   document.getElementById("view-title").textContent = title;
+  document.getElementById("nav-title").textContent = title;
   const backLink = document.getElementById("back-link");
   backLink.hidden = !backHref;
   if (backHref) {
     backLink.href = backHref;
+    document.getElementById("back-label").textContent = backLabel;
   }
 }
 
+// Beim Scrollen: Ist der große Titel weg, bekommt die Leiste oben einen
+// verschwommenen Hintergrund und zeigt den kleinen Titel (wie bei iOS).
+window.addEventListener("scroll", () => {
+  document.body.classList.toggle("scrolled", window.scrollY > 36);
+});
+
 // ===== Hilfsfunktionen =====
+
+// Graues "ⓧ" zum Entfernen, angelehnt an Apples Symbol "xmark.circle.fill"
+const XMARK_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8.5 8.5 7 7m0-7-7 7"/></svg>`;
 
 // Wandelt Sonderzeichen wie < und > in "harmlose" Schreibweisen um, bevor
 // Text in HTML eingesetzt wird. Sonst könnte ein Übungsname wie "<b>Test"
@@ -227,7 +239,7 @@ function renderWorkout(container, plan, unitId) {
     location.hash = "start";
     return;
   }
-  setHeader(unit.name, "#start");
+  setHeader(unit.name, "#start", "Start");
   // Training dieser Einheit beginnen (oder das laufende weiterführen)
   Store.startWorkout(plan.id, unit.id);
 
@@ -357,7 +369,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     location.hash = "start/" + unitId;
     return;
   }
-  setHeader(exercise.name, "#start/" + unit.id);
+  setHeader(exercise.name, "#start/" + unit.id, unit.name);
   // Falls man direkt über einen Link hier gelandet ist
   Store.startWorkout(plan.id, unit.id);
 
@@ -366,9 +378,15 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   const nextExercise = Store.getExercise(unit.exerciseIds[index + 1]);
 
   const nextLink = nextExercise
-    ? `<a class="button-secondary" href="#start/${unit.id}/${nextExercise.id}">
-         Nächste Übung: ${escapeHtml(nextExercise.name)} ›</a>`
-    : `<a class="button-secondary" href="#start/${unit.id}">Zurück zur Übersicht</a>`;
+    ? `<a class="nav-row" href="#start/${unit.id}/${nextExercise.id}">
+         <span class="nav-row-label">Nächste Übung</span>
+         <span class="nav-row-value">${escapeHtml(nextExercise.name)}</span>
+         <span class="chevron" aria-hidden="true">›</span>
+       </a>`
+    : `<a class="nav-row" href="#start/${unit.id}">
+         <span class="nav-row-label">Zurück zur Übersicht</span>
+         <span class="chevron" aria-hidden="true">›</span>
+       </a>`;
 
   const intro = `
     <p class="intro">
@@ -704,7 +722,7 @@ function renderPlaene(planId, unitId, subView) {
 
   // Nur Plan gewählt -> Detailansicht mit seinen Einheiten
   if (!unitId) {
-    setHeader(plan.name, "#plaene");
+    setHeader(plan.name, "#plaene", "Pläne");
     container.innerHTML = renderPlanDetail(plan);
     return;
   }
@@ -718,13 +736,13 @@ function renderPlaene(planId, unitId, subView) {
 
   // Auswahl aus dem Pool
   if (subView === "auswahl") {
-    setHeader("Übungen auswählen", unitHref);
+    setHeader("Übungen auswählen", unitHref, unit.name);
     container.innerHTML = renderExercisePicker(plan, unit);
     return;
   }
 
   // Einheit -> ihre Übungen anzeigen und sortieren
-  setHeader(unit.name, "#plaene/" + planId);
+  setHeader(unit.name, "#plaene/" + planId, plan.name);
   container.innerHTML = renderUnitDetail(plan, unit);
 }
 
@@ -769,7 +787,7 @@ function renderPlanDetail(plan) {
         <li class="exercise-card" data-id="${unit.id}">
           <a class="card-main" href="#plaene/${plan.id}/${unit.id}">
             <span class="exercise-name">${escapeHtml(unit.name)}</span>
-            <span class="exercise-meta">${exerciseCountText(unit.exerciseIds.length)} ›</span>
+            <span class="exercise-meta">${exerciseCountText(unit.exerciseIds.length)}</span>
           </a>
           <span class="drag-handle" aria-label="Zum Verschieben ziehen">≡</span>
         </li>
@@ -809,7 +827,7 @@ function renderUnitDetail(plan, unit) {
             <span class="exercise-meta">${escapeHtml(muscleGroupName(exercise.muscleGroupId))}</span>
           </span>
           <button class="icon-button danger" data-action="remove-from-unit" data-id="${exercise.id}"
-            aria-label="Aus der Einheit entfernen">✕</button>
+            aria-label="Aus der Einheit entfernen">${XMARK_ICON}</button>
           <span class="drag-handle" aria-label="Zum Verschieben ziehen">≡</span>
         </li>
       `
@@ -851,7 +869,7 @@ function renderExercisePicker(plan, unit) {
                   <button class="exercise-card pick-card ${selected ? "selected" : ""}"
                     data-action="toggle-in-unit" data-id="${exercise.id}" aria-pressed="${selected}">
                     <span class="exercise-name">${escapeHtml(exercise.name)}</span>
-                    <span class="check" aria-hidden="true">${selected ? "✓" : ""}</span>
+                    <span class="checkmark" aria-hidden="true">${selected ? "✓" : ""}</span>
                   </button>
                 </li>
               `;
@@ -898,7 +916,7 @@ function renderUebungen() {
                     <span class="exercise-meta">${usageText}</span>
                   </span>
                   <button class="icon-button danger" data-action="delete-exercise" data-id="${exercise.id}"
-                    aria-label="Übung löschen">✕</button>
+                    aria-label="Übung löschen">${XMARK_ICON}</button>
                 </li>
               `;
             })
