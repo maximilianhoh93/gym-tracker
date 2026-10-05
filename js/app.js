@@ -297,7 +297,9 @@ function renderWorkout(container, plan, unitId) {
         style="view-transition-name: ex-${exercise.id}">
         ${leftControl}
         <a class="card-main" href="#start/${unit.id}/${exercise.id}">
-          <span class="exercise-name">${escapeHtml(exercise.name)}</span>
+          <span class="exercise-name">${escapeHtml(exercise.name)}${
+            isDone && isNewRecord(exercise.id, Store.getSets(exercise.id)) ? ` <span class="badge record">Rekord</span>` : ""
+          }</span>
           <span class="exercise-meta">${setsSummary(exercise)}</span>
         </a>
         <span class="chevron" aria-hidden="true">›</span>
@@ -447,6 +449,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
 
   const sets = Store.getSets(exercise.id);
   const last = Store.getLastPerformance(exercise.id);
+  const advice = progressionAdvice(exercise.id);
 
   // Wiederholungen vom letzten Mal als grauer Hinweis im leeren Feld
   // ("placeholder"). Sie sind damit sichtbar, aber NICHT eingetragen.
@@ -477,9 +480,12 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     .map((set, i) => {
       const label = set.warmup ? "W" : String(++workingNumber);
       const name = set.warmup ? "Aufwärmsatz" : `Satz ${label}`;
+      // Hinweis im leeren Wiederholungsfeld: das Ziel aus dem Vorschlag,
+      // sonst die Wiederholungen vom letzten Mal
+      const target = advice ? advice.targets[Math.min(workingNumber - 1, advice.targets.length - 1)] : null;
       const repsHint = set.warmup
         ? last && last.warmup && last.warmup.reps !== null ? last.warmup.reps : "–"
-        : lastReps(workingNumber - 1);
+        : target !== null ? target : lastReps(workingNumber - 1);
       return `
         <div class="set-row ${set.warmup ? "warmup" : ""}">
           <span class="set-number">${label}</span>
@@ -500,6 +506,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     ${intro}
     <div id="note-area">${renderNoteArea(exercise.id)}</div>
     ${lastLine}
+    ${renderCoachCard(exercise.id, advice, sets)}
     <div class="sets-card">
       <div class="set-row set-header">
         <span>Satz</span>
@@ -526,6 +533,85 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       ? ""
       : `<button class="text-button" data-action="toggle-skip" data-id="${exercise.id}">Heute überspringen</button>`}
   `;
+}
+
+// ----- Vorschlag und Rekord auf der Übungsseite -----
+
+// Symbole als kleine SVG-Grafiken
+const ARROW_UP_ICON = `<svg class="row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>`;
+const TROPHY_ICON = `<svg class="row-icon trophy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4m8-4h3a3 3 0 0 1-3 4M12 13v4m-4 3h8m-6-3h4"/></svg>`;
+
+// Kompakte Karte über den Sätzen: Vorschlag fürs heutige Training und Rekord
+function renderCoachCard(exerciseId, advice, sets) {
+  const settings = Store.getExerciseSettings(exerciseId);
+  const record = exerciseRecord(exerciseId);
+  if (!advice && !record) return "";
+
+  // Ist das vorgeschlagene Gewicht schon in allen Arbeitssätzen eingetragen?
+  const working = workingSets(sets);
+  const applied = advice && advice.weight !== null && working.every((set) => set.weight === advice.weight);
+  const applyButton =
+    advice && (advice.type === "increase" || advice.type === "decrease") && !applied
+      ? `<button class="coach-apply" data-action="apply-advice">Übernehmen</button>`
+      : "";
+
+  let adviceText = "";
+  if (advice) {
+    const w = advice.weight !== null ? `${formatNumber(advice.weight)} kg` : "";
+    if (advice.type === "increase") {
+      adviceText = `<strong>${w}</strong> × ${settings.repMin} (+${formatNumber(advice.increment)} kg)`;
+    } else if (advice.type === "decrease") {
+      adviceText = `Zweimal unter ${settings.repMin} Wdh.: <strong>${w}</strong> probieren?`;
+    } else if (advice.type === "bodyweight-top") {
+      adviceText = `Oberes Ende erreicht: Zusatzgewicht oder schwerere Variante?`;
+    } else {
+      adviceText = w ? `<strong>${w}</strong> · je 1 Wdh. mehr` : `Je 1 Wiederholung mehr`;
+    }
+  }
+
+  const adviceRow = advice
+    ? `<div class="coach-row">
+         ${ARROW_UP_ICON}
+         <span class="coach-text">${adviceText}</span>
+         ${applyButton}
+       </div>`
+    : "";
+
+  const recordRow = record
+    ? `<div class="coach-row">
+         ${TROPHY_ICON}
+         <span class="coach-text">Rekord: <strong>${record.weight !== null ? formatNumber(record.weight) + " kg × " : ""}${record.reps}${record.weight === null ? " Wdh." : ""}</strong>
+           · ${shortDate(record.date)}</span>
+       </div>`
+    : "";
+
+  // Kleiner Link zum Ändern von Bereich und Steigerung
+  const rangeLink = `<a class="coach-range" href="#uebungen/${exerciseId}">Bereich ${settings.repMin}–${settings.repMax} Wdh. ›</a>`;
+
+  return `<div class="coach-card">${adviceRow}${recordRow}${advice ? rangeLink : ""}</div>`;
+}
+
+// Vorschlag übernehmen: Gewicht in alle Arbeitssätze, Aufwärmsatz passend
+function applyAdvice(exerciseId) {
+  const advice = progressionAdvice(exerciseId);
+  if (!advice || advice.weight === null) return;
+  Store.getSets(exerciseId).forEach((set, i) => {
+    const weight = set.warmup ? warmupWeightFor(advice.weight) : advice.weight;
+    Store.updateSet(exerciseId, i, "weight", weight);
+  });
+}
+
+// Kurze Einblendung unten, verschwindet nach 2,5 Sekunden von selbst
+let toastTimer = null;
+function showToast(html) {
+  const toast = document.getElementById("toast");
+  toast.innerHTML = html;
+  toast.hidden = false;
+  toast.classList.remove("show");
+  void toast.offsetWidth; // Trick: Animation neu starten
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.hidden = true), 2500);
 }
 
 // ----- Notiz auf der Übungsseite -----
@@ -1064,7 +1150,37 @@ function renderExerciseEdit(container, exerciseId) {
         </li>
       </ul>
 
-      <h2 class="section-title">Training</h2>
+      <h2 class="section-title">Steigerung</h2>
+      <ul class="card-list">
+        <li class="field-row">
+          <span class="field-label">Wdh. mindestens</span>
+          <span class="field-spacer"></span>
+          <button class="step-button" data-action="rep-step" data-which="repMin" data-delta="-1"
+            ${settings.repMin <= 1 ? "disabled" : ""} aria-label="Weniger">−</button>
+          <span class="goal-value">${settings.repMin}</span>
+          <button class="step-button" data-action="rep-step" data-which="repMin" data-delta="1"
+            ${settings.repMin >= settings.repMax - 1 ? "disabled" : ""} aria-label="Mehr">+</button>
+        </li>
+        <li class="field-row">
+          <span class="field-label">Wdh. höchstens</span>
+          <span class="field-spacer"></span>
+          <button class="step-button" data-action="rep-step" data-which="repMax" data-delta="-1"
+            ${settings.repMax <= settings.repMin + 1 ? "disabled" : ""} aria-label="Weniger">−</button>
+          <span class="goal-value">${settings.repMax}</span>
+          <button class="step-button" data-action="rep-step" data-which="repMax" data-delta="1"
+            ${settings.repMax >= 50 ? "disabled" : ""} aria-label="Mehr">+</button>
+        </li>
+        <li class="field-row">
+          <span class="field-label">Gewicht erhöhen um</span>
+          <span class="field-spacer"></span>
+          <button class="step-button" data-action="inc-step" data-delta="-1" aria-label="Weniger">−</button>
+          <span class="goal-value inc-value">${formatNumber(settings.increment)} kg</span>
+          <button class="step-button" data-action="inc-step" data-delta="1" aria-label="Mehr">+</button>
+        </li>
+      </ul>
+      <p class="settings-hint">Schaffst du in allen Arbeitssätzen die Höchstzahl, schlägt die App mehr Gewicht vor. Sonst ist das Ziel eine Wiederholung mehr.</p>
+
+      <h2 class="section-title">Aufwärmen</h2>
       <ul class="card-list">
         <li class="field-row">
           <span class="field-label">Aufwärmsatz</span>
@@ -1392,6 +1508,35 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Wiederholungsbereich ändern (Seite "Übung bearbeiten")
+  if (action === "rep-step") {
+    const id = parseHash().params[0];
+    const settings = Store.getExerciseSettings(id);
+    const which = button.dataset.which; // "repMin" oder "repMax"
+    const value = settings[which] + Number(button.dataset.delta);
+    // Mindestens 1, höchstens 50, und "mindestens" bleibt unter "höchstens"
+    if (value < 1 || value > 50) return;
+    if (which === "repMin" && value >= settings.repMax) return;
+    if (which === "repMax" && value <= settings.repMin) return;
+    Store.updateExercise(id, { [which]: value }); // [which] = Feldname aus der Variable
+    renderCurrentView();
+    return;
+  }
+
+  // Steigerung in festen Stufen ändern (Seite "Übung bearbeiten")
+  if (action === "inc-step") {
+    const id = parseHash().params[0];
+    const steps = [0.5, 1, 1.25, 2, 2.5, 5, 10];
+    const current = Store.getExerciseSettings(id).increment;
+    // Position der aktuellen Stufe suchen (oder die nächstliegende)
+    let index = steps.indexOf(current);
+    if (index === -1) index = steps.findIndex((step) => step >= current);
+    index = Math.min(steps.length - 1, Math.max(0, index + Number(button.dataset.delta)));
+    Store.updateExercise(id, { increment: steps[index] });
+    renderCurrentView();
+    return;
+  }
+
   // Aufwärmsatz für diese Übung grundsätzlich an/aus (Seite "Übung bearbeiten")
   if (action === "toggle-exercise-warmup") {
     const id = parseHash().params[0];
@@ -1458,8 +1603,22 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
-  // Übung abhaken bzw. Haken entfernen
+  // Vorschlag übernehmen (Übungsseite)
+  if (action === "apply-advice") {
+    applyAdvice(parseHash().params[1]);
+    renderCurrentView();
+    return;
+  }
+
+  // Übung abhaken bzw. Haken entfernen. Wird dabei ein Rekord gebrochen,
+  // gibt es eine kurze Einblendung.
   if (action === "toggle-done") {
+    const becomesDone = !Store.isExerciseDone(exerciseId);
+    if (becomesDone && isNewRecord(exerciseId, Store.getSets(exerciseId))) {
+      const best = bestSet(workingSets(Store.getSets(exerciseId)));
+      const text = best.weight !== null ? `${formatNumber(best.weight)} kg × ${best.reps}` : `${best.reps} Wdh.`;
+      showToast(`${TROPHY_ICON} <span>Neuer Rekord! ${text}</span>`);
+    }
     Store.toggleExerciseDone(exerciseId);
     renderAnimated();
     return;

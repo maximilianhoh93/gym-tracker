@@ -103,7 +103,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Mobile-first für das iPhone: große Tipp-Flächen, gut bedienbar mit einer Hand, Safe Areas beachten.
 - Optik angelehnt an den klassischen iOS-Look, einheitlich über ein kleines Design-System in `css/styles.css`:
   - Alle Farben und Maße als Variablen ganz oben (Apples Systemfarben für hell und dunkel: Hintergrund #f2f2f7 / #000, Karten weiß / #1c1c1e, Systemblau #007aff / #0a84ff, Text in drei Abstufungen). Regeln benutzen nur diese Variablen.
-  - Feste Bedeutung der Farben: Blau = antippbar, Grün = erledigt/läuft/an, Orange = Pausentimer, Gold/Eisblau/Lila nur für die Streak.
+  - Feste Bedeutung der Farben: Blau = antippbar, Grün = erledigt/läuft/an, Orange = Pausentimer, Gold = Erfolge (Streak, Rekorde), Eisblau/Lila nur für die Streak.
   - Eine Abrundung für Listen, Karten und Knöpfe (12px), eine größere für Widgets (20px).
   - Listen als gruppierte iOS-Listen: ein abgerundeter Block, Zeilen durch eingerückte Haarlinien getrennt, grauer Pfeil › rechts; Überschriften klein, grau, in Großbuchstaben.
   - Drei Knopfarten: gefüllt (Hauptaktion), getönt (zarter Farbton, z.B. „+ Satz“), Text.
@@ -160,12 +160,14 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 2. ✅ **Übungen bearbeiten** (erledigt, Seite `#uebungen/<id>`): Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
 3. ✅ **Notiz pro Übung** (erledigt): kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
 4. ✅ **Aufwärmsatz** (erledigt): Jede Übung startet standardmäßig mit einem Aufwärmsatz „W“ vor den Arbeitssätzen, entfernbar (die Übung merkt sich das). Vorgeschlagenes Gewicht: etwa 50 % des ersten Arbeitssatzes, gerundet auf 2,5 kg (unter 20 kg auf 1 kg); zieht mit, solange er nicht bewusst geändert wurde. Ein-/Ausschalten auch auf der Seite „Übung bearbeiten“. Gespeichert als Satz mit `warmup: true`; `workingSets()` filtert ihn überall heraus. Aufwärmsätze zählen nicht für Volumen, Rekorde, Vorschläge, „Letztes Mal“.
-5. **Progressive Overload (doppelte Progression)**: Pro Übung Wiederholungsbereich (Standard 8–12) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
+5. ✅ **Progressive Overload (doppelte Progression)** (erledigt, Logik in `js/progress.js`): Pro Übung Wiederholungsbereich (Standard 8–12) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
    - Alle Arbeitssätze am oberen Ende → „Vorschlag: +2,5 kg“ mit Knopf zum Übernehmen, Ziel wieder unteres Ende.
    - Sonst → gleiches Gewicht, Ziel 1 Wiederholung mehr (als grauer Hinweis in den Feldern).
-   - Zweimal hintereinander unter dem Bereich → Hinweis „Gewicht etwas reduzieren?“.
+   - Zweimal hintereinander unter dem Bereich (erster Arbeitssatz) → „… kg probieren?“ (etwa 10 % weniger).
+   - Ohne Gewicht (z.B. Klimmzüge): nur Wiederholungen; am oberen Ende Hinweis auf Zusatzgewicht.
+   - Bereich und Steigerung auf der Seite „Übung bearbeiten“ (Steigerung in Stufen 0,5/1/1,25/2/2,5/5/10 kg).
    Grundlage: Gewicht oder Wiederholungen steigern wirkt für Muskelaufbau etwa gleich (Plotkin et al. 2022); doppelte Progression kombiniert beides.
-6. **Rekorde**: kompakt direkt auf der Übungsseite („🏆 Rekord: 102,5 kg × 5“), keine eigene Seite. Beim Abhaken mit neuem Rekord: „Neuer Rekord!“.
+6. ✅ **Rekorde** (erledigt): kompakt direkt auf der Übungsseite („🏆 Rekord: 102,5 kg × 5“), keine eigene Seite. Bester Satz = höchstes Gewicht, bei Gleichstand mehr Wiederholungen. Beim Abhaken mit neuem Rekord: Einblendung „Neuer Rekord!“ und Etikett „Rekord“ in der Liste. Pokal und Rekord-Etikett in Gold (Gold = Erfolge: Streak und Rekorde).
 7. **Trainingsprotokoll**: In den Einstellungen im Kalender einen Trainingstag antippen → Übersicht dieses Trainings (Dauer, Übungen, Sätze, bewegte kg, Rekorde) und die Übungen mit Sätzen. Dort Werte ändern, Übungen entfernen, Training löschen. Die Seite bleibt übersichtlich.
 8. **Eigene Pläne**: In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen.
 
