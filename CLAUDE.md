@@ -27,7 +27,10 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Trainingspläne
 - Beim ersten Öffnen ist nur eine Übersicht gängiger Trainingsarten für Krafttraining vorhanden, zum Beispiel Push/Pull/Legs, Upper/Lower, Ganzkörper. Jede Trainingsart enthält ihre Einheiten (bei Push/Pull/Legs also Push, Pull und Legs).
-- Es sind keine Übungen vorgegeben. Nutzer/innen tragen die Übungen pro Einheit selbst ein.
+- Es sind keine Übungen vorgegeben. Nutzer/innen legen ihre Übungen selbst an.
+- Alle Übungen liegen in einem gemeinsamen **Übungs-Pool** (eigener Tab „Übungen“), gruppiert nach Muskelgruppe. Jede Übung gibt es dort genau einmal.
+- In jeder Einheit werden Übungen aus dem Pool ausgewählt. Fehlt eine, kann sie direkt bei der Auswahl neu angelegt werden.
+- Die Reihenfolge der Übungen einer Einheit wird per Drag and Drop (Griff ≡) festgelegt.
 
 ### Training durchführen
 - Nutzer/innen wählen den Plan und dann die Einheit, die sie heute trainieren (z.B. Push). Danach werden die Übungen dieser Einheit angezeigt.
@@ -74,7 +77,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 
 - [x] 1. Grundgerüst und Navigation (Tab-Leiste unten, Ansichten über den #-Teil der Adresse)
 - [x] 2. Trainingsarten und Einheiten anzeigen (Ganzkörper, Upper/Lower, Push/Pull/Legs, Bro-Split; Vorlagen in `js/storage.js`)
-- [x] 3. Übungen pro Einheit anlegen (hinzufügen, löschen mit Rückfrage, Reihenfolge mit ↑/↓; noch nicht dauerhaft gespeichert, das folgt in Schritt 7)
+- [x] 3. Übungen pro Einheit anlegen (Übungs-Pool nach Muskelgruppen, Auswahl pro Einheit, Sortieren per Drag and Drop; noch nicht dauerhaft gespeichert, das folgt in Schritt 7)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
 
