@@ -415,10 +415,14 @@ function renderDurationWidget(workouts) {
 }
 
 // Alle Widgets als wischbare Reihe ("Karussell") mit Punkten darunter
+// Die Streak steht allein ganz oben auf der Startseite (nicht im Karussell)
+function renderStreakCard() {
+  return `<section class="widget streak-card">${renderStreakWidget()}</section>`;
+}
+
 function renderWidgets() {
   const workouts = Store.getWorkouts();
   const widgets = [
-    renderStreakWidget(),
     renderMonthWidget(),
     renderTodayWidget(workouts),
     renderVolumeWidget(workouts),
@@ -484,7 +488,64 @@ function niceStep(range) {
   return nice * power;
 }
 
-// Diagramm als SVG. history = Trainings der Übung (älteste zuerst)
+// Gewicht als Linie: höchstes Gewicht pro Training (höchstens 12 Trainings)
+function renderWeightChart(history) {
+  const points = history
+    .map((h) => ({ date: h.date, value: topWeight(h.sets) }))
+    .filter((p) => p.value !== null)
+    .slice(-12);
+
+  const width = 340;
+  const height = 170;
+  const pad = { top: 22, right: 14, bottom: 24, left: 40 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  // y-Bereich mit etwas Luft, auf "glatte" Schritte gerundet
+  const values = points.map((p) => p.value);
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  const room = Math.max((max - min) * 0.15, max * 0.05, 1);
+  min = Math.max(0, min - room);
+  max = max + room;
+  const step = niceStep(max - min);
+  min = Math.floor(min / step) * step;
+  max = Math.ceil(max / step) * step;
+  if (max === min) max = min + step;
+
+  const x = (i) => (points.length === 1 ? pad.left + plotW / 2 : pad.left + (i / (points.length - 1)) * plotW);
+  const y = (v) => pad.top + plotH - ((v - min) / (max - min)) * plotH;
+
+  let grid = "";
+  for (let v = min; v <= max + step / 2; v += step) {
+    grid += `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${y(v)}" y2="${y(v)}"></line>
+             <text class="axis-label" x="${pad.left - 6}" y="${y(v) + 4}" text-anchor="end">${formatGerman(v)}</text>`;
+  }
+  const xLabels =
+    `<text class="axis-label" x="${x(0)}" y="${height - 6}" text-anchor="${points.length === 1 ? "middle" : "start"}">${shortDate(points[0].date)}</text>` +
+    (points.length > 1
+      ? `<text class="axis-label" x="${x(points.length - 1)}" y="${height - 6}" text-anchor="end">${shortDate(points[points.length - 1].date)}</text>`
+      : "");
+
+  // Linie durch alle Punkte: "M x,y" = Stift ansetzen, "L x,y" = Linie ziehen
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
+  const dots = points.map((p, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(p.value)}" r="4"></circle>`).join("");
+  const last = points[points.length - 1];
+  const lastLabel = `<text class="value-label" x="${x(points.length - 1)}" y="${y(last.value) - 9}" text-anchor="${points.length > 1 ? "end" : "middle"}">${formatGerman(last.value)} kg</text>`;
+  const data = points.map((p, i) => ({ x: x(i), text: `${shortDate(p.date)}: ${formatGerman(p.value)} kg` }));
+
+  return `
+    <div class="chart" data-points='${JSON.stringify(data)}' data-width="${width}">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Gewicht, zuletzt ${formatGerman(last.value)} kg">
+        ${grid}<path class="chart-line" d="${path}"></path>${dots}${xLabels}${lastLabel}
+        <line class="crosshair" x1="0" x2="0" y1="${pad.top}" y2="${pad.top + plotH}" visibility="hidden"></line>
+      </svg>
+      <div class="chart-tooltip" hidden></div>
+    </div>
+  `;
+}
+
+// Volumen als gestapelte Balken. history = Trainings der Übung (älteste zuerst)
 function renderSetsChart(history, bodyweight) {
   const sessions = history.slice(-8); // höchstens 8 Balken, damit Zahlen Platz haben
   const value = (set) => (bodyweight ? set.reps : (set.weight || 0) * set.reps);
@@ -509,9 +570,9 @@ function renderSetsChart(history, bodyweight) {
              <text class="axis-label" x="${pad.left - 6}" y="${y(v) + 4}" text-anchor="end">${formatGerman(v)}</text>`;
   }
 
-  // Balken: Breite abhängig von der Anzahl
+  // Balken: schmal, etwa ein Drittel des Platzes pro Training
   const slot = plotW / Math.max(sessions.length, 1);
-  const barW = Math.min(38, slot - 10);
+  const barW = Math.min(20, slot * 0.36);
   const gap = 2; // schmale Lücke zwischen den Sätzen
   let bars = "";
   const tooltipData = [];
@@ -534,6 +595,11 @@ function renderSetsChart(history, bodyweight) {
       base += v;
     });
 
+    // Umrandung um den ganzen Balken (alle Sätze zusammen), leicht größer
+    const outlineTop = y(totals[i]) - 2;
+    bars += `<rect class="bar-outline" x="${cx - barW / 2 - 2}" y="${outlineTop}" width="${barW + 4}"
+      height="${y(0) - outlineTop}" rx="5"></rect>`;
+
     const weight = topWeight(session.sets);
     const setsText = formatSets(session.sets);
     tooltipData.push({ x: cx, text: `${shortDate(session.date)}: ${setsText}` });
@@ -541,7 +607,7 @@ function renderSetsChart(history, bodyweight) {
     // Über dem neuesten Balken das Gewicht (bzw. die Summe der Wdh.)
     if (i === sessions.length - 1) {
       const label = bodyweight ? `${totals[i]} Wdh.` : weight !== null ? `${formatNumber(weight)} kg` : "";
-      bars += `<text class="value-label" x="${cx}" y="${y(totals[i]) - 7}" text-anchor="middle">${label}</text>`;
+      bars += `<text class="value-label" x="${cx}" y="${y(totals[i]) - 9}" text-anchor="middle">${label}</text>`;
     }
   });
 
@@ -605,7 +671,8 @@ document.addEventListener("pointerdown", (event) => {
 
 // Der Verlaufsbereich einer Übung: Diagramm und Kennzahlen darunter
 // (Rekord, Veränderung seit Beginn, Anzahl Trainings)
-function renderExerciseHistory(exerciseId) {
+// metric: "weight" (Gewicht als Linie) oder "volume" (Satz-Balken)
+function renderExerciseHistory(exerciseId, metric) {
   const history = Store.getExerciseHistory(exerciseId);
   if (history.length === 0) {
     return `
@@ -635,16 +702,32 @@ function renderExerciseHistory(exerciseId) {
   }
 
   const stats = [
-    [`${TROPHY_ICON}${recordText}`, bodyweight ? "Rekord (Wdh.)" : "Rekord (kg × Wdh.)"],
+    [`${TROPHY_ICON}${recordText}`, "Rekord"],
     [change, "Seit Beginn"],
     [history.length, history.length === 1 ? "Training" : "Trainings"],
   ];
 
+  // Ohne Gewicht gibt es nur die Wiederholungen, also keinen Umschalter
+  if (bodyweight) metric = "volume";
+  const toggle = bodyweight
+    ? ""
+    : `<div class="segmented" role="tablist">
+         <button class="${metric === "weight" ? "selected" : ""}" data-action="history-metric" data-metric="weight"
+           role="tab" aria-selected="${metric === "weight"}">Gewicht</button>
+         <button class="${metric === "volume" ? "selected" : ""}" data-action="history-metric" data-metric="volume"
+           role="tab" aria-selected="${metric === "volume"}">Volumen</button>
+       </div>`;
+  const caption =
+    metric === "weight"
+      ? "Höchstes Gewicht pro Training"
+      : `${bodyweight ? "Wiederholungen" : "Volumen"} pro Training · Zahlen = Wdh. je Satz`;
+
   return `
     <h2 class="section-title">Verlauf</h2>
     <div class="history-card">
-      <div class="chart-caption">${bodyweight ? "Wiederholungen" : "Volumen"} pro Training · Zahlen = Wdh. je Satz</div>
-      ${renderSetsChart(history, bodyweight)}
+      ${toggle}
+      <div class="chart-caption">${caption}</div>
+      ${metric === "weight" ? renderWeightChart(history) : renderSetsChart(history, bodyweight)}
       <div class="stat-row">
         ${stats.map(([v, label]) => `<div class="stat"><span class="stat-value">${v}</span><span class="stat-label">${label}</span></div>`).join("")}
       </div>

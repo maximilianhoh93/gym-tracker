@@ -34,14 +34,17 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Ein Plan wird als **aktiver Plan** gewählt (man trainiert meist immer mit demselben). Die Reihenfolge seiner Einheiten ist per Drag and Drop änderbar.
 
 ### Startseite
+- Titel oben: der Name der App, „GymTracker“ (Tab heißt weiter „Start“).
 - Tabs unten: Start, Pläne, Übungen, Einstellungen. Einen eigenen Tab „Verlauf“ gibt es nicht; der Verlauf steckt in der jeweiligen Übung.
-- Oben wischbare Widgets (Karussell mit Punkten), nicht überladen:
-  - Wochen-Streak (an erster Stelle): Flamme mit Anzahl Wochen in Folge, Balken für den Fortschritt dieser Woche (Verlauf Orange → Gold), darunter die Tage Mo–So dieser Woche; Trainingstage mit orange-goldenem Haken
+- Aufbau von oben nach unten: Wochen-Streak allein → Block „Training starten“ → Überschrift „Statistik“ mit den übrigen Widgets.
+- Wochen-Streak als eigenes Widget ganz oben: Flamme mit Anzahl Wochen in Folge, Balken für den Fortschritt dieser Woche (Verlauf Orange → Gold), darunter die Tage Mo–So dieser Woche; Trainingstage mit orange-goldenem Haken.
+- Block „Training starten“ ist das Wichtigste der App und deutlich hervorgehoben: zart blau getönter Block, große Überschrift, rechts der Name des aktiven Plans als Link. Die Einheit, die dran ist (bzw. läuft), ist blau getönt und hat einen runden Start-Knopf ▶ statt des Pfeils (kein dauerhafter Rahmen).
+- Statistik-Widgets als wischbares Karussell (mit Punkten), nicht überladen:
   - Diesen Monat: Trainingstage, Kalender in Streak-Farben, Vergleich zum Vormonat
   - Heute bewegt: Summe aus Gewicht × Wiederholungen aller Sätze von heute abgehakten Übungen, zählt schon während des Trainings; Vergleich zum letzten Training
   - Volumen diese Woche: Sätze pro Muskelgruppe (Montag bis heute). Sätze statt kg, weil kg zwischen Muskelgruppen nicht vergleichbar sind
   - Ø Trainingsdauer der letzten 10 Trainings (nur plausible Dauern von 5 Minuten bis 4 Stunden)
-- Darunter „Training starten“ mit den Einheiten des aktiven Plans. Ein begonnenes, nicht beendetes Training ist mit „Läuft“ markiert.
+- Ein begonnenes, nicht beendetes Training ist mit „Läuft“ markiert.
 - Antippbare Kästchen (Einheiten, Übungen, Pläne) bekommen unter dem Mauszeiger (bzw. beim Antippen der Einheiten auf dem iPhone) einen blauen Rahmen.
 
 ### Training durchführen
@@ -63,7 +66,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 ### Sätze, Gewicht, Wiederholungen
 - Ein Tipp auf eine Übung im Training öffnet ihre Seite. Oben stehen die Sätze (Satznummer, kg, Wdh.).
 - Pro Übung standardmäßig ein Aufwärmsatz „W“ und 2 Arbeitssätze, mit „+ Satz“/„− Satz“ änderbar. Eine bewusst eingestellte Satzanzahl (+/−) merkt sich die Übung, sonst gilt der Standard 2.
-- Reihenfolge auf der Übungsseite: „Übung x von y“, Letztes Mal, Vorschlag, Sätze, Pausentimer, Notiz, Verlauf. Kein Knopf „Nächste Übung“.
+- Reihenfolge auf der Übungsseite: oben „x von y erledigt“ (wie in der Übungsliste, übersprungene zählen nicht) mit Knopf „Bearbeiten“ (öffnet „Übung bearbeiten“), dann Letztes Mal, Vorschlag, Sätze (mit „− Satz / + Satz“ im selben Kasten), Pausentimer, Notiz, Verlauf. Kein Knopf „Nächste Übung“.
 - Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich: Ein Gewicht wird in die folgenden Sätze übernommen, solange die leer sind oder denselben Wert hatten. Einzeln bleibt es änderbar. Ein neuer Satz übernimmt die Werte des vorherigen.
 
 ### Pausentimer
@@ -88,7 +91,9 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Verlauf
 - Auf der Übungsseite (im Training) unter Sätzen und Timer ein Bereich „Verlauf“.
-- Ein gestapeltes Balkendiagramm (keine Tabelle, kein Umschalter): ein Balken pro Training (höchstens die letzten 8), aufgeteilt in die einzelnen Arbeitssätze (Satz 1 unten). Höhe = Volumen (Gewicht × Wdh.), im Abschnitt steht die Wiederholungszahl; bei Übungen ohne Gewicht Höhe = Wiederholungen. Über dem neuesten Balken das Gewicht.
+- Umschalter „Gewicht | Volumen“ (keine Tabelle, nie zwei y-Achsen in einem Diagramm):
+  - Gewicht: höchstes Gewicht pro Training als Linie (Standard)
+  - Volumen: gestapelte, schmale Balken, ein Balken pro Training (höchstens die letzten 8), aufgeteilt in die einzelnen Arbeitssätze (Satz 1 unten), mit Umrandung um den ganzen Balken. Höhe = Gewicht × Wdh., im Abschnitt steht die Wiederholungszahl. Bei Übungen ohne Gewicht nur diese Ansicht (Höhe = Wiederholungen).
 - Antippen zeigt die Sätze des nächstgelegenen Trainings. Darunter Kennzahlen: Rekord (mit Pokal), Veränderung seit Beginn, Anzahl Trainings.
 - Es zählen nur abgehakte Übungen mit eingetragenen Wiederholungen; übersprungene nie.
 
@@ -108,13 +113,14 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
   - Wenig Text: keine Wiederholung des Plannamens innerhalb einer Einheit, keine Erklärtexte, wo sich die Bedienung selbst erklärt (z.B. Sortier-Griff, Häkchen).
   - Drei Knopfarten: gefüllt (Hauptaktion), getönt (zarter Farbton, z.B. „+ Satz“), Text.
   - Entfernen als graues ⓧ, Auswahl als blaues Häkchen rechts, Abhaken als Kreis links (wie Erinnerungen).
-  - Navigationsleiste wie iOS: Zurück-Link nennt das Ziel („‹ Pläne“), großer Titel im Inhalt, beim Scrollen kleiner Titel in einer verschwommenen Leiste. Lange Titel werden kleiner, deutsch getrennt und auf zwei Zeilen begrenzt.
+  - Navigationsleiste wie iOS: Zurück-Knopf in einem abgerundeten Kasten („‹ Pläne“, nennt das Ziel), großer Titel im Inhalt, beim Scrollen kleiner Titel mittig in einer verschwommenen Leiste. Die Leiste ist ein Raster aus drei Spalten, damit Zurück-Knopf und Titel sich nie überlappen. Lange Titel werden kleiner, deutsch getrennt und auf zwei Zeilen begrenzt.
   - Leere Zustände („Noch keine …“) immer als Hinweis-Karte, nie als loser Text.
   - Zusammenfassungen von Sätzen bleiben einzeilig: bei wechselndem Gewicht oder mehr als 4 Sätzen kurz als „6 Sätze · 95–102,5 kg“.
   - Symbole als SVG-Grafiken, nicht als Schriftzeichen (die sehen je nach Gerät anders aus).
   - Ein Training gilt erst als „Läuft“, wenn etwas eingetragen, abgehakt oder übersprungen wurde.
 - Tab-Leiste wie bei iOS: schlichte Linien-Symbole (SVG) statt Emojis, einheitlich grau, der aktive Tab blau; leicht durchscheinender, verschwommener Hintergrund.
-- „Heute dran“ und „Aktiv“ werden nur als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
+- „Heute dran“ wird als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
+- Pläne: Der aktive Plan ist grün hinterlegt (dasselbe Grün wie „Pause vorbei“), mit grünem Etikett „Aktiv“.
 - Hover-Effekte (Hervorhebung beim Darüberfahren mit der Maus) für Tabs, Karten und Knöpfe, aber nur auf Geräten mit Maus (`@media (hover: hover)`), damit sie auf dem iPhone nicht „kleben bleiben“.
 - Die Widgets auf der Startseite rasten beim Wischen immer genau beim nächsten ein; die Punkte darunter sind anklickbar.
 

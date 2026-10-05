@@ -13,7 +13,7 @@
 
 // Titel, die in der Kopfzeile angezeigt werden
 const VIEW_TITLES = {
-  start: "Startseite",
+  start: "GymTracker", // Name der App als Titel der Startseite
   plaene: "Pläne",
   uebungen: "Übungen",
   einstellungen: "Einstellungen",
@@ -202,11 +202,15 @@ function renderStart(unitId, exerciseId) {
   if (!plan) {
     container.innerHTML = `
       ${renderBackupBanner()}
+      ${renderStreakCard()}
+      <section class="start-block">
+        <h2 class="block-title">Training starten</h2>
+        <p class="placeholder">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
+          aus und tippe auf „Als aktiven Plan wählen“.</p>
+        <a class="button-secondary" href="#plaene">Plan auswählen</a>
+      </section>
+      <h2 class="section-title">Statistik</h2>
       ${renderWidgets()}
-      <h2 class="section-title">Training starten</h2>
-      <p class="placeholder">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
-        aus und tippe auf „Als aktiven Plan wählen“.</p>
-      <a class="button-secondary" href="#plaene">Plan auswählen</a>
     `;
     return;
   }
@@ -234,33 +238,44 @@ function renderStart(unitId, exerciseId) {
           : isNext && !runningId
             ? `<span class="badge">Heute dran</span>`
             : "";
+      // Die Einheit, die dran ist (bzw. läuft), wird hervorgehoben: getönter
+      // Hintergrund und rechts ein runder Start-Knopf statt des Pfeils
+      const highlight = runningId ? unit.id === runningId : isNext;
       return `
         <li>
-          <a class="exercise-card unit-card" href="#start/${unit.id}">
+          <a class="exercise-card unit-card ${highlight ? "highlight" : ""}" href="#start/${unit.id}">
             <span class="exercise-info">
               <span class="exercise-name">${escapeHtml(unit.name)} ${badge}</span>
               <span class="exercise-meta">
                 ${exerciseCountText(unit.exerciseIds.length)} · ${lastDoneText(Store.getLastWorkoutDate(unit.id))}
               </span>
             </span>
-            <span class="chevron" aria-hidden="true">›</span>
+            ${highlight
+              ? `<span class="play-circle" aria-hidden="true">${ICONS.play}</span>`
+              : `<span class="chevron" aria-hidden="true">›</span>`}
           </a>
         </li>
       `;
     })
     .join("");
 
-  // Oben die wischbaren Widgets, darunter (gut mit dem Daumen erreichbar)
-  // die Einheiten zum Starten
+  // Aufbau: Streak oben, darunter der hervorgehobene Block "Training
+  // starten" (das Wichtigste der App), darunter die Statistik-Widgets
   container.innerHTML = `
     ${renderBackupBanner()}
-      ${renderWidgets()}
-    <h2 class="section-title">Training starten · ${escapeHtml(plan.name)}</h2>
-    ${plan.units.length === 0
-      ? `<p class="placeholder">Dieser Plan hat noch keine Trainingstage.</p>
-         <a class="button-secondary" href="#plaene/${plan.id}">Trainingstage hinzufügen</a>`
-      : `<ul class="card-list unit-list">${cards}</ul>
-         <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>`}
+    ${renderStreakCard()}
+    <section class="start-block">
+      <div class="block-head">
+        <h2 class="block-title">Training starten</h2>
+        <a class="block-link" href="#plaene/${plan.id}">${escapeHtml(plan.name)} ›</a>
+      </div>
+      ${plan.units.length === 0
+        ? `<p class="placeholder">Dieser Plan hat noch keine Trainingstage.</p>
+           <a class="button-secondary" href="#plaene/${plan.id}">Trainingstage hinzufügen</a>`
+        : `<ul class="card-list unit-list">${cards}</ul>`}
+    </section>
+    <h2 class="section-title">Statistik</h2>
+    ${renderWidgets()}
   `;
 }
 
@@ -426,14 +441,20 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   // Falls man direkt über einen Link hier gelandet ist
   Store.startWorkout(plan.id, unit.id);
 
-  // Position in der Einheit, für "Übung 2 von 5"
-  const index = unit.exerciseIds.indexOf(exercise.id);
+  // Fortschritt der Einheit wie in der Übungsliste: "3 von 5 erledigt"
+  // (übersprungene Übungen zählen nicht mit)
+  const doneCount = unit.exerciseIds.filter((id) => Store.isExerciseDone(id)).length;
+  const total = unit.exerciseIds.filter((id) => !Store.isExerciseSkipped(id)).length;
 
+  // Oben: Fortschritt links, "Bearbeiten" (Seite "Übung bearbeiten") rechts
   const intro = `
-    <p class="intro">
-      Übung ${index + 1} von ${unit.exerciseIds.length}
-      ${Store.isExerciseDone(exercise.id) ? `<span class="badge done-badge">✓ Erledigt</span>` : ""}
-    </p>`;
+    <div class="exercise-top">
+      <p class="intro">
+        ${doneCount} von ${total} erledigt
+        ${Store.isExerciseDone(exercise.id) ? `<span class="badge done-badge">✓ Erledigt</span>` : ""}
+      </p>
+      <a class="finish-button" href="#uebungen/${exercise.id}">Bearbeiten</a>
+    </div>`;
 
   // Übersprungen: keine Sätze zeigen, nur den Weg zurück
   if (Store.isExerciseSkipped(exercise.id)) {
@@ -516,10 +537,10 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       <button class="warmup-toggle" data-action="${hasWarmup ? "remove-warmup" : "add-warmup"}">
         ${hasWarmup ? "Aufwärmsatz entfernen" : "+ Aufwärmsatz"}
       </button>
-    </div>
-    <div class="set-buttons">
-      <button class="pill-button" data-action="remove-set" ${workingCount <= 1 ? "disabled" : ""}>− Satz</button>
-      <button class="pill-button" data-action="add-set">+ Satz</button>
+      <div class="set-buttons">
+        <button class="pill-button" data-action="remove-set" ${workingCount <= 1 ? "disabled" : ""}>− Satz</button>
+        <button class="pill-button" data-action="add-set">+ Satz</button>
+      </div>
     </div>
     <div id="timer-card" class="timer-row ${RestTimer.status !== "idle" ? "running" : ""} ${RestTimer.status === "done" ? "done" : ""}"
       data-exercise="${exercise.id}" data-unit="${unit.id}">
@@ -527,7 +548,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     </div>
     <div id="note-area">${renderNoteArea(exercise.id)}</div>
     <div id="history" data-exercise="${exercise.id}">
-      ${renderExerciseHistory(exercise.id)}
+      ${renderExerciseHistory(exercise.id, historyMetric)}
     </div>
     ${Store.isExerciseDone(exercise.id)
       ? ""
@@ -574,10 +595,7 @@ function renderCoachCard(exerciseId, advice, sets) {
       ${applyButton}
     </div>`;
 
-  // Kleiner Link zum Ändern von Bereich und Steigerung
-  const rangeLink = `<a class="coach-range" href="#uebungen/${exerciseId}">Bereich ${settings.repMin}–${settings.repMax} Wdh. ›</a>`;
-
-  return `<div class="coach-card">${adviceRow}${rangeLink}</div>`;
+  return `<div class="coach-card">${adviceRow}</div>`;
 }
 
 // Vorschlag übernehmen: Gewicht in alle Arbeitssätze, Aufwärmsatz passend
@@ -602,6 +620,10 @@ function showToast(html) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (toast.hidden = true), 2500);
 }
+
+// Welche Ansicht der Verlauf zeigt: "weight" (Gewicht) oder "volume".
+// Bleibt beim Wechsel zwischen Übungen erhalten.
+let historyMetric = "weight";
 
 // ----- Notiz auf der Übungsseite -----
 // Kompakt: eine Zeile mit der ersten Zeile der Notiz (oder "Notiz
@@ -838,10 +860,10 @@ function renderPlanList(plans) {
   const cards = plans
     .map(
       (plan) => `
-        <a class="card card-link" href="#plaene/${plan.id}">
+        <a class="card card-link ${plan.id === activePlanId ? "active-plan" : ""}" href="#plaene/${plan.id}">
           <h2 class="card-title">
             ${escapeHtml(plan.name)}
-            ${plan.id === activePlanId ? `<span class="badge">Aktiv</span>` : ""}
+            ${plan.id === activePlanId ? `<span class="badge active">Aktiv</span>` : ""}
           </h2>
           <p class="card-text">${escapeHtml(plan.description)}</p>
           <div class="chips">
@@ -1669,6 +1691,14 @@ appMain.addEventListener("click", (event) => {
     const next = current === null ? 3 : current + Number(button.dataset.delta);
     Store.setWeeklyGoal(Math.min(7, Math.max(1, next)));
     renderCurrentView();
+    return;
+  }
+
+  // Umschalter im Verlauf: nur den Verlaufsbereich neu zeichnen
+  if (action === "history-metric") {
+    historyMetric = button.dataset.metric;
+    const history = document.getElementById("history");
+    history.innerHTML = renderExerciseHistory(history.dataset.exercise, historyMetric);
     return;
   }
 
