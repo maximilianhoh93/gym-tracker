@@ -153,8 +153,28 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 - Schutz deshalb: App als Home-Bildschirm-App installieren, dauerhaften Speicher anfordern und regelmäßige Sicherung als Datei in iCloud Drive (Erinnerung in der App, fester Dateiname `gym-tracker-backup.json`, wird beim Sichern ersetzt). Wiederherstellen über „Importieren“.
 - Die App soll mit meiner Freundin geteilt werden (Link zu GitHub Pages). Jede Person hat ihre eigenen, getrennten Daten auf ihrem iPhone.
 
+## Nächste Funktionen (beschlossen, in dieser Reihenfolge)
+
+1. **Sicherung**: Export aller Daten als Datei nach iCloud Drive (fester Name `gym-tracker-backup.json`, Teilen-Menü von iOS), Erinnerung nach 5 Trainings oder spätestens 1 Woche, Import zum Wiederherstellen. Anzeige „Letzte Sicherung vor X Tagen“ in den Einstellungen.
+2. **Übungen bearbeiten**: Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
+3. **Notiz pro Übung**: kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
+4. **Aufwärmsatz**: Jede Übung startet standardmäßig mit einem Aufwärmsatz „W“ vor den Arbeitssätzen, entfernbar (die Übung merkt sich das). Vorgeschlagenes Gewicht: etwa 50 % des Arbeitsgewichts, auf eine sinnvolle Stufe gerundet. Aufwärmsätze zählen nicht für Volumen, Rekorde, Vorschläge, „Letztes Mal“.
+5. **Progressive Overload (doppelte Progression)**: Pro Übung Wiederholungsbereich (Standard 8–12) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
+   - Alle Arbeitssätze am oberen Ende → „Vorschlag: +2,5 kg“ mit Knopf zum Übernehmen, Ziel wieder unteres Ende.
+   - Sonst → gleiches Gewicht, Ziel 1 Wiederholung mehr (als grauer Hinweis in den Feldern).
+   - Zweimal hintereinander unter dem Bereich → Hinweis „Gewicht etwas reduzieren?“.
+   Grundlage: Gewicht oder Wiederholungen steigern wirkt für Muskelaufbau etwa gleich (Plotkin et al. 2022); doppelte Progression kombiniert beides.
+6. **Rekorde**: kompakt direkt auf der Übungsseite („🏆 Rekord: 102,5 kg × 5“), keine eigene Seite. Beim Abhaken mit neuem Rekord: „Neuer Rekord!“.
+7. **Trainingsprotokoll**: In den Einstellungen im Kalender einen Trainingstag antippen → Übersicht dieses Trainings (Dauer, Übungen, Sätze, bewegte kg, Rekorde) und die Übungen mit Sätzen. Dort Werte ändern, Übungen entfernen, Training löschen. Die Seite bleibt übersichtlich.
+8. **Eigene Pläne**: In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen.
+
+Bewusst NICHT umsetzen (vorerst): App online stellen (Schritt 10, später), Übungen archivieren statt löschen (ich lösche keine Übungen), Bildschirm im Training anlassen, Sätze einzeln abhaken bzw. Timer automatisch starten.
+
 ## Spätere Ideen (noch nicht bauen)
 
-- Eigene Trainingspläne anlegen und bearbeiten
 - Cloud-Speicherung mit Accounts, damit wir die App zusammen nutzen können (z.B. gemeinsame Pläne, Verlauf der anderen sehen). Vorbereitet: Alle Daten laufen über `storage.js`, alle Einträge haben eindeutige ids, das Datenformat hat eine Versionsnummer. Die Daten sollen dann zusätzlich lokal bleiben (offline im Studio nutzbar), beim ersten Anmelden werden die lokalen Daten hochgeladen.
-- Persönliche Rekorde
+- Geschätztes Maximalgewicht (1RM) im Verlauf
+- Körpergewicht erfassen
+- Monats-Rückblick
+- Plan als Datei mit anderen teilen
+- Hantelscheiben-Rechner, kg/lb, alle Daten löschen
