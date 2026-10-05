@@ -227,22 +227,29 @@ function renderWorkout(container, plan, unitId) {
     return;
   }
 
-  // In zwei Gruppen aufteilen; die Reihenfolge des Plans bleibt jeweils erhalten
-  const open = exercises.filter((ex) => !Store.isExerciseDone(ex.id));
+  // In drei Gruppen aufteilen; die Reihenfolge des Plans bleibt jeweils erhalten
   const done = exercises.filter((ex) => Store.isExerciseDone(ex.id));
+  const skipped = exercises.filter((ex) => Store.isExerciseSkipped(ex.id));
+  const open = exercises.filter((ex) => !Store.isExerciseDone(ex.id) && !Store.isExerciseSkipped(ex.id));
 
   const card = (exercise) => {
     const isDone = Store.isExerciseDone(exercise.id);
+    const isSkipped = Store.isExerciseSkipped(exercise.id);
+    // Übersprungene: statt des Hakens ein Knopf zum Zurückholen
+    const leftControl = isSkipped
+      ? `<button class="check-button" data-action="toggle-skip" data-id="${exercise.id}"
+           aria-label="Zurückholen"><span class="restore" aria-hidden="true">↺</span></button>`
+      : `<button class="check-button" data-action="toggle-done" data-id="${exercise.id}"
+           aria-label="${isDone ? "Haken entfernen" : "Abhaken"}" aria-pressed="${isDone}">
+           <span class="check" aria-hidden="true">${isDone ? "✓" : ""}</span>
+         </button>`;
     // view-transition-name: ein eindeutiger Name pro Kästchen. Damit kann
     // der Browser jedes Kästchen beim Umsortieren an seinen neuen Platz
     // "gleiten" lassen (siehe renderAnimated).
     return `
-      <li class="exercise-card workout-card ${isDone ? "done" : ""}"
+      <li class="exercise-card workout-card ${isDone ? "done" : ""} ${isSkipped ? "skipped" : ""}"
         style="view-transition-name: ex-${exercise.id}">
-        <button class="check-button" data-action="toggle-done" data-id="${exercise.id}"
-          aria-label="${isDone ? "Haken entfernen" : "Abhaken"}" aria-pressed="${isDone}">
-          <span class="check" aria-hidden="true">${isDone ? "✓" : ""}</span>
-        </button>
+        ${leftControl}
         <a class="card-main" href="#training/${unit.id}/${exercise.id}">
           <span class="exercise-name">${escapeHtml(exercise.name)}</span>
           <span class="exercise-meta">${setsSummary(exercise)}</span>
@@ -258,32 +265,60 @@ function renderWorkout(container, plan, unitId) {
          <ul class="card-list">${done.map(card).join("")}</ul>`
       : "";
 
-  // Sind alle Übungen erledigt, wird "Training beenden" zum Hauptknopf
+  const skippedSection =
+    skipped.length > 0
+      ? `<h2 class="section-title">Übersprungen</h2>
+         <ul class="card-list">${skipped.map(card).join("")}</ul>`
+      : "";
+
+  // Sind alle Übungen erledigt (oder übersprungen), wird "Training beenden"
+  // zum Hauptknopf
   const allDone = open.length === 0;
 
+  // Übersprungene zählen nicht mit: "2 von 3 erledigt"
+  const total = exercises.length - skipped.length;
+
   container.innerHTML = `
-    <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${exercises.length} erledigt</p>
+    <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${total} erledigt</p>
     ${allDone
       ? `<p class="all-done">Alle Übungen erledigt. Stark!</p>`
       : `<ul class="card-list">${open.map(card).join("")}</ul>`}
     ${doneSection}
+    ${skippedSection}
     <button class="${allDone ? "button-primary button-wide finish-button" : "button-secondary"}"
       data-action="finish-workout">Training beenden</button>
   `;
 }
 
-// Kurze Zusammenfassung unter dem Übungsnamen, z.B. "Brust · 62,5 kg × 10 · 8"
-// Solange nichts eingetragen ist, nur Muskelgruppe und Satzanzahl.
+// Kurze Zusammenfassung unter dem Übungsnamen:
+// - übersprungen:                 "Heute übersprungen"
+// - heute schon Wdh. eingetragen: "Brust · 62,5 kg × 10 · 8"
+// - sonst, falls vorhanden:       "Zuletzt: 62,5 kg × 10 · 8"
+// - sonst:                        "Brust · 2 Sätze"
 function setsSummary(exercise) {
-  const group = muscleGroupName(exercise.muscleGroupId);
+  if (Store.isExerciseSkipped(exercise.id)) return "Heute übersprungen";
+  const group = escapeHtml(muscleGroupName(exercise.muscleGroupId));
   const sets = Store.getSets(exercise.id);
-  const filled = sets.filter((set) => set.weight !== null || set.reps !== null);
-  if (filled.length === 0) {
-    return `${escapeHtml(group)} · ${sets.length} Sätze`;
+  if (sets.some((set) => set.reps !== null)) {
+    return `${group} · ${formatSets(sets)}`;
   }
-  const weight = filled[0].weight !== null ? `${formatNumber(filled[0].weight)} kg × ` : "";
-  const reps = filled.map((set) => (set.reps !== null ? set.reps : "–")).join(" · ");
-  return `${escapeHtml(group)} · ${weight}${reps}`;
+  const last = Store.getLastPerformance(exercise.id);
+  if (last) return `Zuletzt: ${formatSets(last.sets)}`;
+  return `${group} · ${sets.length} Sätze`;
+}
+
+// Sätze kurz als Text: "62,5 kg × 10 · 8". Ändert sich das Gewicht
+// innerhalb der Übung, steht es bei jedem Satz: "60 kg × 10 · 55 kg × 8"
+function formatSets(sets) {
+  const reps = (set) => (set.reps !== null ? set.reps : "–");
+  const sameWeight = sets.every((set) => set.weight === sets[0].weight);
+  if (sameWeight) {
+    const weight = sets[0].weight !== null ? `${formatNumber(sets[0].weight)} kg × ` : "";
+    return weight + sets.map(reps).join(" · ");
+  }
+  return sets
+    .map((set) => (set.weight !== null ? `${formatNumber(set.weight)} kg × ${reps(set)}` : reps(set)))
+    .join(" · ");
 }
 
 // Zeichnet die Ansicht neu, und zwar mit Animation, wenn der Browser
@@ -319,7 +354,41 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
          Nächste Übung: ${escapeHtml(nextExercise.name)} ›</a>`
     : `<a class="button-secondary" href="#training/${unit.id}">Zurück zur Übersicht</a>`;
 
+  const intro = `
+    <p class="intro">
+      ${escapeHtml(muscleGroupName(exercise.muscleGroupId))} · Übung ${index + 1} von ${unit.exerciseIds.length}
+      ${Store.isExerciseDone(exercise.id) ? `<span class="badge done-badge">✓ Erledigt</span>` : ""}
+    </p>`;
+
+  // Übersprungen: keine Sätze zeigen, nur den Weg zurück
+  if (Store.isExerciseSkipped(exercise.id)) {
+    container.innerHTML = `
+      ${intro}
+      <div class="skipped-note">
+        <p>Diese Übung ist für heute übersprungen. Es wird nichts für sie gespeichert.</p>
+        <button class="pill-button" data-action="toggle-skip" data-id="${exercise.id}">↺ Zurückholen</button>
+      </div>
+      ${nextLink}
+    `;
+    return;
+  }
+
   const sets = Store.getSets(exercise.id);
+  const last = Store.getLastPerformance(exercise.id);
+
+  // Wiederholungen vom letzten Mal als grauer Hinweis im leeren Feld
+  // ("placeholder"). Sie sind damit sichtbar, aber NICHT eingetragen.
+  const lastReps = (i) => {
+    if (!last) return "0";
+    const lastSet = last.sets[Math.min(i, last.sets.length - 1)];
+    return lastSet.reps !== null ? lastSet.reps : "0";
+  };
+
+  // Datum kurz auf Deutsch, z.B. "05.10."
+  const lastLine = last
+    ? `<p class="last-time">Letztes Mal (${new Date(last.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}):
+         <strong>${formatSets(last.sets)}</strong></p>`
+    : "";
 
   // Eine Zeile pro Satz. Die Eingabefelder merken sich in data-index und
   // data-field, welcher Satz und welcher Wert gemeint ist.
@@ -333,7 +402,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
           <input class="set-input" type="text" inputmode="decimal" placeholder="0"
             value="${formatNumber(set.weight)}" data-index="${i}" data-field="weight"
             aria-label="Gewicht Satz ${i + 1} in kg">
-          <input class="set-input" type="text" inputmode="numeric" placeholder="0"
+          <input class="set-input" type="text" inputmode="numeric" placeholder="${lastReps(i)}"
             value="${formatNumber(set.reps)}" data-index="${i}" data-field="reps"
             aria-label="Wiederholungen Satz ${i + 1}">
         </div>
@@ -343,9 +412,8 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
 
   // Die Timer-Zeile merkt sich in data-exercise, zu welcher Übung sie gehört
   container.innerHTML = `
-    <p class="intro">
-      ${escapeHtml(muscleGroupName(exercise.muscleGroupId))} · Übung ${index + 1} von ${unit.exerciseIds.length}
-    </p>
+    ${intro}
+    ${lastLine}
     <div class="sets-card">
       <div class="set-row set-header">
         <span>Satz</span>
@@ -362,6 +430,9 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       ${renderTimerCard(exercise.id)}
     </div>
     ${nextLink}
+    ${Store.isExerciseDone(exercise.id)
+      ? ""
+      : `<button class="text-button" data-action="toggle-skip" data-id="${exercise.id}">Heute überspringen</button>`}
   `;
 }
 
@@ -880,11 +951,20 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Übung für heute überspringen bzw. zurückholen
+  if (action === "toggle-skip") {
+    Store.toggleExerciseSkipped(exerciseId);
+    renderAnimated();
+    return;
+  }
+
   // Training beenden und speichern
   if (action === "finish-workout") {
     const unitIdNow = parseHash().params[0];
     const unit = Store.getUnit(Store.getActivePlanId(), unitIdNow);
-    const openCount = unit.exerciseIds.filter((id) => !Store.isExerciseDone(id)).length;
+    const openCount = unit.exerciseIds.filter(
+      (id) => !Store.isExerciseDone(id) && !Store.isExerciseSkipped(id)
+    ).length;
     if (openCount > 0) {
       const text = openCount === 1 ? "Noch 1 Übung ist offen." : `Noch ${openCount} Übungen sind offen.`;
       if (!confirm(`${text} Training trotzdem beenden?`)) return;

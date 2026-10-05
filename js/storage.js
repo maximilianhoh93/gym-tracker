@@ -18,7 +18,7 @@
 //   Wird ab Schritt 4 befüllt.
 // - currentWorkout: das gerade laufende Training (oder null). Pro Übung
 //   die Sätze mit Gewicht (kg) und Wiederholungen:
-//   { unitId: "ppl-push", exercises: { "<übung-id>": { sets: [{ weight: 60, reps: 10 }, ...], done: false } } }
+//   { unitId: "ppl-push", exercises: { "<übung-id>": { sets: [{ weight: 60, reps: 10 }, ...], done: false, skipped: false } } }
 
 // Standard-Pausenzeit für neue Übungen in Sekunden (2 Minuten)
 const DEFAULT_REST_SECONDS = 120;
@@ -209,10 +209,13 @@ const Store = {
 
   // ----- Laufendes Training -----
 
-  // Training für eine Einheit beginnen. Läuft schon eins für dieselbe
-  // Einheit, passiert nichts (die eingetragenen Sätze bleiben erhalten).
+  // Training für eine Einheit beginnen bzw. das laufende weiterführen.
+  // Ein neues Training beginnt, wenn noch keins läuft, wenn das laufende zu
+  // einer anderen Einheit gehört oder wenn es von einem früheren Tag ist.
+  // Das alte wird dabei automatisch gespeichert, damit nichts verloren geht.
   startWorkout(planId, unitId) {
-    if (currentWorkout && currentWorkout.unitId === unitId) return;
+    if (currentWorkout && currentWorkout.unitId === unitId && isToday(currentWorkout.startedAt)) return;
+    if (currentWorkout) Store.finishWorkout();
     currentWorkout = {
       id: createId(),
       planId: planId,
@@ -246,20 +249,56 @@ const Store = {
     rememberSetCount(exerciseId, entry.sets.length);
   },
 
-  // Ist die Übung im laufenden Training abgehakt?
+  // Ist die Übung im laufenden Training abgehakt bzw. übersprungen?
   isExerciseDone(exerciseId) {
-    return Boolean(currentWorkout && currentWorkout.exercises[exerciseId] && currentWorkout.exercises[exerciseId].done);
+    const entry = currentWorkout && currentWorkout.exercises[exerciseId];
+    return Boolean(entry && entry.done);
   },
 
-  // Haken setzen bzw. wieder entfernen
+  isExerciseSkipped(exerciseId) {
+    const entry = currentWorkout && currentWorkout.exercises[exerciseId];
+    return Boolean(entry && entry.skipped);
+  },
+
+  // Haken setzen bzw. wieder entfernen. Abhaken hebt "übersprungen" auf.
   toggleExerciseDone(exerciseId) {
     const entry = workoutEntry(exerciseId);
-    if (entry) entry.done = !entry.done;
+    if (!entry) return;
+    entry.done = !entry.done;
+    if (entry.done) entry.skipped = false;
+  },
+
+  // Übung für dieses Training überspringen bzw. zurückholen
+  toggleExerciseSkipped(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry) return;
+    entry.skipped = !entry.skipped;
+    if (entry.skipped) entry.done = false;
+  },
+
+  // Was wurde bei dieser Übung zuletzt gemacht? Sucht im Verlauf das neueste
+  // Training, in dem die Übung ABGEHAKT war. Übersprungene oder nur
+  // angefangene Übungen zählen nicht.
+  // Ergebnis: { date: "2026-10-05T...", sets: [{ weight, reps }, ...] } oder null
+  getLastPerformance(exerciseId) {
+    // Neueste zuerst: Kopie der Liste nach Datum absteigend sortieren
+    const newestFirst = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
+    for (const workout of newestFirst) {
+      const entry = workout.exercises.find((ex) => ex.exerciseId === exerciseId);
+      if (entry && entry.done && !entry.skipped && entry.sets.length > 0) {
+        return structuredClone({ date: workout.date, sets: entry.sets });
+      }
+    }
+    return null;
   },
 
   // Training beenden: Es wandert in die Liste der absolvierten Trainings.
-  // Gespeichert werden nur Übungen, die abgehakt sind oder ausgefüllte
-  // Sätze haben, jeweils mit der verwendeten Pausenzeit.
+  // Gespeichert werden abgehakte und übersprungene Übungen sowie solche,
+  // bei denen Wiederholungen eingetragen wurden. Übersprungene Übungen
+  // werden OHNE Sätze gespeichert, damit sie im Verlauf nichts verfälschen.
+  // Hinweis: Der Verlauf ist ab Schritt 7 dauerhaft gespeichert; ein
+  // abgehakter Satz gilt als "letztes Mal", sobald das Training gespeichert
+  // ist (durch "Training beenden" oder automatisch, siehe startWorkout).
   finishWorkout() {
     if (!currentWorkout) return;
     const finished = {
@@ -272,16 +311,22 @@ const Store = {
     };
     // Object.entries macht aus { id: eintrag, ... } eine Liste von [id, eintrag]
     Object.entries(currentWorkout.exercises).forEach(([exerciseId, entry]) => {
-      const sets = entry.sets.filter((set) => set.weight !== null || set.reps !== null);
-      if (sets.length === 0 && !entry.done) return; // Übung nicht gemacht
+      const hasReps = entry.sets.some((set) => set.reps !== null);
+      if (!entry.done && !entry.skipped && !hasReps) return; // Übung nicht angefasst
       finished.exercises.push({
         exerciseId: exerciseId,
-        sets: sets,
+        // Nur Sätze mit Wiederholungen zählen. Ein Gewicht allein ist bloß
+        // die Vorbelegung vom letzten Mal, kein gemachter Satz.
+        sets: entry.skipped ? [] : entry.sets.filter((set) => set.reps !== null),
         done: Boolean(entry.done),
+        skipped: Boolean(entry.skipped),
         restSeconds: Store.getRestSeconds(exerciseId),
       });
     });
-    workouts.push(finished);
+    // Ein Training, in dem gar nichts gemacht wurde, wird nicht gespeichert
+    if (finished.exercises.length > 0) {
+      workouts.push(finished);
+    }
     currentWorkout = null;
   },
 
@@ -334,17 +379,29 @@ function findUnit(planId, unitId) {
 }
 
 // Eintrag einer Übung im laufenden Training. Gibt es noch keinen, wird er
-// mit der gemerkten Satzanzahl (Standard: 2) und leeren Sätzen angelegt.
+// mit der gemerkten Satzanzahl (Standard: 2) angelegt. Die GEWICHTE kommen
+// vom letzten Mal, die Wiederholungen bleiben leer (die App zeigt die alten
+// nur als Hinweis an).
 function workoutEntry(exerciseId) {
   if (!currentWorkout) return null;
   if (!currentWorkout.exercises[exerciseId]) {
     const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const last = Store.getLastPerformance(exerciseId);
     const count = exercise && exercise.setCount ? exercise.setCount : DEFAULT_SET_COUNT;
     // Array.from({ length: 2 }, ...) erzeugt eine Liste mit 2 Einträgen
-    const sets = Array.from({ length: count }, () => ({ weight: null, reps: null }));
-    currentWorkout.exercises[exerciseId] = { sets: sets, done: false };
+    const sets = Array.from({ length: count }, (_, i) => {
+      // Gab es letztes Mal weniger Sätze, nehmen wir das Gewicht des letzten
+      const lastSet = last ? last.sets[Math.min(i, last.sets.length - 1)] : null;
+      return { weight: lastSet ? lastSet.weight : null, reps: null };
+    });
+    currentWorkout.exercises[exerciseId] = { sets: sets, done: false, skipped: false };
   }
   return currentWorkout.exercises[exerciseId];
+}
+
+// Liegt ein Zeitpunkt (als Text) am heutigen Kalendertag?
+function isToday(isoText) {
+  return new Date(isoText).toDateString() === new Date().toDateString();
 }
 
 // Die Übung merkt sich, wie viele Sätze man zuletzt gemacht hat

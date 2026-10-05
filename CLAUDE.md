@@ -39,7 +39,14 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Für das aktuelle Training können Übungen hinzugefügt oder entfernt werden, ohne den gespeicherten Plan zu ändern.
 - Übungen lassen sich auf der Trainingsseite der Einheit abhaken (Kreis links). Abgehakte rutschen animiert nach unten in „Erledigt“, die offenen rücken nach.
 - Unter jeder Übung steht eine kurze Zusammenfassung der eingetragenen Sätze (z.B. „62,5 kg × 10 · 8“).
+- Abgehakte Übungen bleiben änderbar (Gewicht und Wiederholungen).
+- Einzelne Übungen lassen sich für das aktuelle Training überspringen („Heute überspringen“ auf der Übungsseite, „↺“ holt sie zurück). Für übersprungene Übungen wird nichts gespeichert, sie verfälschen also keinen Verlauf und keinen Durchschnitt.
 - „Training beenden“ speichert das Training (Sätze, verwendete Pausenzeit pro Übung) im Verlauf. Sind noch Übungen offen, kommt eine Rückfrage.
+- Ein nicht beendetes Training wird automatisch gespeichert, sobald man eine andere Einheit oder dieselbe Einheit an einem späteren Tag startet.
+
+### Letztes Mal
+- „Letztes Mal“ einer Übung = das neueste gespeicherte Training, in dem sie abgehakt war. Es zählen nur Sätze mit eingetragenen Wiederholungen (ein Gewicht allein ist nur die Vorbelegung).
+- Beim nächsten Training sind die Gewichte vom letzten Mal eingetragen, die Wiederholungen nicht. Diese stehen nur als grauer Hinweis im leeren Feld, dazu eine Zeile „Letztes Mal (TT.MM.): …“ über den Sätzen.
 
 ### Sätze, Gewicht, Wiederholungen
 - Ein Tipp auf eine Übung im Training öffnet ihre Seite. Oben stehen die Sätze (Satznummer, kg, Wdh.).
