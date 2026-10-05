@@ -307,6 +307,31 @@ const Store = {
     return new Date(Math.max(...dates));
   },
 
+  // Alle beendeten Trainings (für die Statistiken auf der Startseite)
+  getWorkouts() {
+    return structuredClone(workouts);
+  },
+
+  // Verlauf einer Übung: alle Trainings, in denen sie abgehakt war und
+  // Sätze mit Wiederholungen hatte, ältestes zuerst.
+  // Ergebnis: [{ date: "2026-10-05T...", sets: [{ weight, reps }, ...] }, ...]
+  getExerciseHistory(exerciseId) {
+    const history = [];
+    workouts.forEach((workout) => {
+      const entry = workout.exercises.find((ex) => ex.exerciseId === exerciseId);
+      if (entry && entry.done && !entry.skipped && entry.sets.length > 0) {
+        history.push({ date: workout.date, sets: entry.sets });
+      }
+    });
+    history.sort((a, b) => a.date.localeCompare(b.date));
+    return structuredClone(history);
+  },
+
+  // Die Einheit, deren Training gerade läuft (heute), sonst null
+  getRunningUnitId() {
+    return currentWorkout && isToday(currentWorkout.startedAt) ? currentWorkout.unitId : null;
+  },
+
   // ----- Laufendes Training -----
 
   // Training für eine Einheit beginnen bzw. das laufende weiterführen.
@@ -315,12 +340,14 @@ const Store = {
   // Das alte wird dabei automatisch gespeichert, damit nichts verloren geht.
   startWorkout(planId, unitId) {
     if (currentWorkout && currentWorkout.unitId === unitId && isToday(currentWorkout.startedAt)) return;
-    if (currentWorkout) Store.finishWorkout();
+    if (currentWorkout) Store.finishWorkout(true);
+    const now = new Date().toISOString(); // Zeitpunkt als Text, z.B. "2026-10-05T18:30:00.000Z"
     currentWorkout = {
       id: createId(),
       planId: planId,
       unitId: unitId,
-      startedAt: new Date().toISOString(), // Zeitpunkt als Text, z.B. "2026-10-05T18:30:00.000Z"
+      startedAt: now,
+      lastActivityAt: now, // Zeitpunkt der letzten Eingabe
       exercises: {},
     };
     save();
@@ -338,6 +365,7 @@ const Store = {
     const entry = workoutEntry(exerciseId);
     if (!entry || !entry.sets[index]) return;
     entry.sets[index][field] = value;
+    touchWorkout();
     save();
   },
 
@@ -349,6 +377,7 @@ const Store = {
     // { ...last } erstellt eine Kopie des letzten Satzes
     entry.sets.push(last ? { ...last } : { weight: null, reps: null });
     rememberSetCount(exerciseId, entry.sets.length);
+    touchWorkout();
     save();
   },
 
@@ -369,6 +398,7 @@ const Store = {
     if (!entry) return;
     entry.done = !entry.done;
     if (entry.done) entry.skipped = false;
+    touchWorkout();
     save();
   },
 
@@ -378,6 +408,7 @@ const Store = {
     if (!entry) return;
     entry.skipped = !entry.skipped;
     if (entry.skipped) entry.done = false;
+    touchWorkout();
     save();
   },
 
@@ -404,14 +435,22 @@ const Store = {
   // Hinweis: Der Verlauf ist ab Schritt 7 dauerhaft gespeichert; ein
   // abgehakter Satz gilt als "letztes Mal", sobald das Training gespeichert
   // ist (durch "Training beenden" oder automatisch, siehe startWorkout).
-  finishWorkout() {
+  //
+  // auto = true: Das Training wird automatisch gespeichert (andere Einheit
+  // oder neuer Tag). Als Ende zählt dann die letzte Eingabe, nicht "jetzt".
+  // Sonst bekäme ein Training von gestern das Datum von heute und eine
+  // Dauer von 20 Stunden.
+  finishWorkout(auto = false) {
     if (!currentWorkout) return;
+    const endedAt = auto ? currentWorkout.lastActivityAt || currentWorkout.startedAt : new Date().toISOString();
+    const minutes = Math.round((new Date(endedAt) - new Date(currentWorkout.startedAt)) / 60000);
     const finished = {
       id: currentWorkout.id,
       planId: currentWorkout.planId,
       unitId: currentWorkout.unitId,
       startedAt: currentWorkout.startedAt,
-      date: new Date().toISOString(), // Zeitpunkt des Beendens
+      date: endedAt, // Zeitpunkt des Endes
+      durationMinutes: minutes,
       exercises: [],
     };
     // Object.entries macht aus { id: eintrag, ... } eine Liste von [id, eintrag]
@@ -442,6 +481,7 @@ const Store = {
     if (!entry || entry.sets.length <= 1) return;
     entry.sets.pop(); // pop() entfernt das letzte Element
     rememberSetCount(exerciseId, entry.sets.length);
+    touchWorkout();
     save();
   },
 
@@ -489,7 +529,7 @@ function findUnit(planId, unitId) {
 }
 
 // Eintrag einer Übung im laufenden Training. Gibt es noch keinen, wird er
-// mit der gemerkten Satzanzahl (Standard: 2) angelegt. Die GEWICHTE kommen
+// mit der passenden Satzanzahl angelegt (siehe unten). Die GEWICHTE kommen
 // vom letzten Mal, die Wiederholungen bleiben leer (die App zeigt die alten
 // nur als Hinweis an).
 function workoutEntry(exerciseId) {
@@ -497,7 +537,9 @@ function workoutEntry(exerciseId) {
   if (!currentWorkout.exercises[exerciseId]) {
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     const last = Store.getLastPerformance(exerciseId);
-    const count = exercise && exercise.setCount ? exercise.setCount : DEFAULT_SET_COUNT;
+    // Satzanzahl: bewusst eingestellt (+/− Satz) > wie letztes Mal > Standard 2
+    const count =
+      exercise && exercise.setCount ? exercise.setCount : last ? last.sets.length : DEFAULT_SET_COUNT;
     // Array.from({ length: 2 }, ...) erzeugt eine Liste mit 2 Einträgen
     const sets = Array.from({ length: count }, (_, i) => {
       // Gab es letztes Mal weniger Sätze, nehmen wir das Gewicht des letzten
@@ -507,6 +549,11 @@ function workoutEntry(exerciseId) {
     currentWorkout.exercises[exerciseId] = { sets: sets, done: false, skipped: false };
   }
   return currentWorkout.exercises[exerciseId];
+}
+
+// Merkt sich den Zeitpunkt der letzten Eingabe im laufenden Training
+function touchWorkout() {
+  if (currentWorkout) currentWorkout.lastActivityAt = new Date().toISOString();
 }
 
 // Liegt ein Zeitpunkt (als Text) am heutigen Kalendertag?

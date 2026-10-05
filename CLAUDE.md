@@ -10,7 +10,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Setze Aufgaben direkt um. Frag nicht bei jedem Schritt um Erlaubnis. Triff einfache Entscheidungen selbst und begründe sie kurz.
 - Frag nur nach, wenn eine Anforderung unklar ist oder eine Entscheidung später schwer zu ändern wäre.
 - Halte den Code einfach und gut lesbar. Kommentare auf Deutsch.
-- Keine zusätzlichen Bibliotheken außer Chart.js (für Diagramme). Chart.js lokal im Projekt ablegen, nicht per CDN laden, damit die App offline funktioniert.
+- Keine zusätzlichen Bibliotheken. Chart.js wäre erlaubt, wird aber nicht gebraucht: Die Diagramme werden in `js/charts.js` selbst als SVG gezeichnet (leichter, offline, Apple-Optik). Falls doch einmal Chart.js: lokal im Projekt ablegen, nicht per CDN.
 - Sag nach jedem Schritt kurz, was du gemacht hast und wie ich es testen kann.
 - Mach nach jedem funktionierenden Schritt einen Git-Commit mit verständlicher Nachricht. Erkläre mir Git, wenn es relevant wird.
 
@@ -33,15 +33,24 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Die Reihenfolge der Übungen einer Einheit wird per Drag and Drop (Griff ≡) festgelegt.
 - Ein Plan wird als **aktiver Plan** gewählt (man trainiert meist immer mit demselben). Die Reihenfolge seiner Einheiten ist per Drag and Drop änderbar.
 
+### Startseite
+- Tabs unten: Start, Pläne, Übungen, Daten. Einen eigenen Tab „Verlauf“ gibt es nicht; der Verlauf steckt in der jeweiligen Übung.
+- Oben wischbare Widgets (Karussell mit Punkten), nicht überladen:
+  - Diesen Monat: Anzahl Trainings, kleiner Monatskalender, Vergleich zum Vormonat
+  - Volumen diese Woche: Sätze pro Muskelgruppe (Montag bis heute). Sätze statt kg, weil kg zwischen Muskelgruppen nicht vergleichbar sind
+  - Ø Trainingsdauer der letzten 10 Trainings (nur plausible Dauern von 5 Minuten bis 4 Stunden)
+- Darunter „Training starten“ mit den Einheiten des aktiven Plans. Ein begonnenes, nicht beendetes Training ist mit „Läuft“ markiert.
+
 ### Training durchführen
-- Die Trainingsseite (Startseite) zeigt die Einheiten des aktiven Plans. Ein Tipp auf eine Einheit (z.B. Push) startet das Training und zeigt ihre Übungen.
+- Die Startseite zeigt die Einheiten des aktiven Plans. Ein Tipp auf eine Einheit (z.B. Push) startet das Training und zeigt ihre Übungen.
 - Bei jeder Einheit steht, wann sie zuletzt trainiert wurde. Die Einheit nach der zuletzt trainierten (in Plan-Reihenfolge, danach wieder von vorn) ist als „Heute dran“ markiert.
 - Für das aktuelle Training können Übungen hinzugefügt oder entfernt werden, ohne den gespeicherten Plan zu ändern.
 - Übungen lassen sich auf der Trainingsseite der Einheit abhaken (Kreis links). Abgehakte rutschen animiert nach unten in „Erledigt“, die offenen rücken nach.
 - Unter jeder Übung steht eine kurze Zusammenfassung der eingetragenen Sätze (z.B. „62,5 kg × 10 · 8“).
 - Abgehakte Übungen bleiben änderbar (Gewicht und Wiederholungen).
 - Einzelne Übungen lassen sich für das aktuelle Training überspringen („Heute überspringen“ auf der Übungsseite, „↺“ holt sie zurück). Für übersprungene Übungen wird nichts gespeichert, sie verfälschen also keinen Verlauf und keinen Durchschnitt.
-- „Training beenden“ speichert das Training (Sätze, verwendete Pausenzeit pro Übung) im Verlauf. Sind noch Übungen offen, kommt eine Rückfrage.
+- „Training beenden“ steht oben auf der Trainingsseite der Einheit (grün, sobald alles erledigt ist). Es speichert das Training (Sätze, verwendete Pausenzeit pro Übung, Dauer) im Verlauf. Sind noch Übungen offen, kommt eine Rückfrage.
+- Bei automatisch gespeicherten Trainings zählt die letzte Eingabe als Ende (für Datum und Dauer).
 - Ein nicht beendetes Training wird automatisch gespeichert, sobald man eine andere Einheit oder dieselbe Einheit an einem späteren Tag startet.
 
 ### Letztes Mal
@@ -50,7 +59,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Sätze, Gewicht, Wiederholungen
 - Ein Tipp auf eine Übung im Training öffnet ihre Seite. Oben stehen die Sätze (Satznummer, kg, Wdh.).
-- Pro Übung standardmäßig 2 Sätze, mit „+ Satz“/„− Satz“ änderbar. Jede Übung merkt sich ihre zuletzt verwendete Satzanzahl.
+- Pro Übung standardmäßig 2 Sätze, mit „+ Satz“/„− Satz“ änderbar. Satzanzahl: bewusst eingestellt (+/−) vor der Anzahl vom letzten Mal vor dem Standard 2.
 - Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich: Ein Gewicht wird in die folgenden Sätze übernommen, solange die leer sind oder denselben Wert hatten. Einzeln bleibt es änderbar. Ein neuer Satz übernimmt die Werte des vorherigen.
 
 ### Pausentimer
@@ -64,7 +73,12 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Die verwendete Pausenzeit wird mit der Übung gespeichert.
 
 ### Verlauf
-- Pro Übung ein Diagramm, das die Entwicklung des Gewichts über die Zeit zeigt.
+- Auf der Übungsseite (im Training) unter Sätzen und Timer ein Bereich „Verlauf“.
+- Umschalter „Gewicht | Volumen“ (nie beide in einem Diagramm mit zwei y-Achsen):
+  - Gewicht: höchstes Gewicht pro Training als Linie
+  - Volumen: Gewicht × Wiederholungen aller Sätze pro Training als Balken; bei Übungen ohne Gewicht die Summe der Wiederholungen
+- Antippen zeigt den Wert des nächstgelegenen Trainings. Darunter Kennzahlen (Höchstes Gewicht, Veränderung seit Beginn, Anzahl Trainings) und die letzten 5 Trainings als Liste.
+- Es zählen nur abgehakte Übungen mit eingetragenen Wiederholungen; übersprungene nie.
 
 ### Daten sichern
 - Export aller Daten als JSON-Datei und Import dieser Datei. So kann man Backups in iCloud Drive ablegen und Daten auf ein neues Gerät übertragen.
@@ -98,6 +112,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] Zusatz: aktiver Plan, Einheiten auf der Trainingsseite mit „Zuletzt“ und „Heute dran“, Einheiten per Drag and Drop sortierbar
 - [x] 6. Pausentimer (vorgezogen; `js/timer.js`)
 - [x] 4. Training starten, Übungen abhaken, Sätze mit Gewicht und Wiederholungen erfassen, Training beenden
+- [x] 8. Verlauf pro Übung (Diagramm Gewicht/Volumen) und Startseite mit Widgets
 - [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.

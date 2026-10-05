@@ -5,22 +5,21 @@
 // in derselben Ansicht.
 //
 // Unteransichten hängen wir mit "/" an:
-//   #training/ppl-push             -> Training der Einheit "Push" (aktiver Plan)
-//   #training/ppl-push/<übung-id>  -> eine Übung in diesem Training (mit Timer)
+//   #start/ppl-push                -> Training der Einheit "Push" (aktiver Plan)
+//   #start/ppl-push/<übung-id>     -> eine Übung in diesem Training (mit Timer, Verlauf)
 //   #plaene/ppl                    -> der Plan "Push/Pull/Legs"
 //   #plaene/ppl/ppl-push           -> dessen Einheit "Push"
 //   #plaene/ppl/ppl-push/auswahl   -> Übungen für "Push" aus dem Pool auswählen
 
 // Titel, die in der Kopfzeile angezeigt werden
 const VIEW_TITLES = {
-  training: "Training",
+  start: "Startseite",
   plaene: "Pläne",
   uebungen: "Übungen",
-  verlauf: "Verlauf",
   daten: "Daten",
 };
 
-const DEFAULT_VIEW = "training";
+const DEFAULT_VIEW = "start";
 
 // Zuletzt gewählte Muskelgruppe im Formular "Neue Übung". So muss man sie
 // nicht jedes Mal neu wählen, wenn man mehrere Brust-Übungen anlegt.
@@ -65,8 +64,8 @@ function renderCurrentView() {
   // Standard-Kopfzeile; einzelne Ansichten können sie überschreiben
   setHeader(VIEW_TITLES[viewName]);
 
-  if (viewName === "training") {
-    renderTraining(params[0], params[1]);
+  if (viewName === "start") {
+    renderStart(params[0], params[1]);
   } else if (viewName === "plaene") {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
@@ -146,17 +145,20 @@ function renderExerciseForm(planId = "", unitId = "") {
   `;
 }
 
-// ===== Ansicht "Training" =====
-// Ohne unitId: Einheiten des aktiven Plans zur Auswahl.
+// ===== Ansicht "Start" =====
+// Ohne unitId: Startseite mit Statistik-Widgets und den Einheiten des
+// aktiven Plans zur Auswahl.
 // Mit unitId: das Training dieser Einheit.
 // Mit unitId und exerciseId: eine einzelne Übung mit Pausentimer.
-function renderTraining(unitId, exerciseId) {
-  const container = document.getElementById("view-training");
+function renderStart(unitId, exerciseId) {
+  const container = document.getElementById("view-start");
   const plan = Store.getPlan(Store.getActivePlanId());
 
-  // Noch kein Plan aktiviert -> Hinweis mit Weg zu den Plänen
+  // Noch kein Plan aktiviert -> Widgets und Hinweis mit Weg zu den Plänen
   if (!plan) {
     container.innerHTML = `
+      ${renderWidgets()}
+      <h2 class="section-title">Training starten</h2>
       <p class="intro">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
         aus und tippe auf „Als aktiven Plan wählen“.</p>
       <a class="button-secondary" href="#plaene">Plan auswählen</a>
@@ -175,20 +177,28 @@ function renderTraining(unitId, exerciseId) {
   }
 
   const nextId = nextUnitId(plan);
+  const runningId = Store.getRunningUnitId();
 
   const cards = plan.units
     .map((unit) => {
       const isNext = unit.id === nextId;
+      // Läuft gerade ein Training, ist dieses markiert statt "Heute dran"
+      const badge =
+        unit.id === runningId
+          ? `<span class="badge running">Läuft</span>`
+          : isNext && !runningId
+            ? `<span class="badge">Heute dran</span>`
+            : "";
       return `
         <li>
-          <a class="exercise-card unit-card ${isNext ? "next" : ""}" href="#training/${unit.id}">
+          <a class="exercise-card unit-card ${(runningId ? unit.id === runningId : isNext) ? "next" : ""}" href="#start/${unit.id}">
             <span class="exercise-info">
               <span class="exercise-name">${escapeHtml(unit.name)}</span>
               <span class="exercise-meta">
                 ${exerciseCountText(unit.exerciseIds.length)} · ${lastDoneText(Store.getLastWorkoutDate(unit.id))}
               </span>
             </span>
-            ${isNext ? `<span class="badge">Heute dran</span>` : ""}
+            ${badge}
             <span class="chevron" aria-hidden="true">›</span>
           </a>
         </li>
@@ -196,12 +206,13 @@ function renderTraining(unitId, exerciseId) {
     })
     .join("");
 
+  // Oben die wischbaren Widgets, darunter (gut mit dem Daumen erreichbar)
+  // die Einheiten zum Starten
   container.innerHTML = `
-    <p class="intro">
-      ${escapeHtml(plan.name)} · <a href="#plaene/${plan.id}">Plan bearbeiten</a>
-    </p>
-    <h2 class="section-title">Welche Einheit trainierst du heute?</h2>
+    ${renderWidgets()}
+    <h2 class="section-title">Training starten · ${escapeHtml(plan.name)}</h2>
     <ul class="card-list">${cards}</ul>
+    <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>
   `;
 }
 
@@ -211,10 +222,10 @@ function renderTraining(unitId, exerciseId) {
 function renderWorkout(container, plan, unitId) {
   const unit = Store.getUnit(plan.id, unitId);
   if (!unit) {
-    location.hash = "training";
+    location.hash = "start";
     return;
   }
-  setHeader(unit.name, "#training");
+  setHeader(unit.name, "#start");
   // Training dieser Einheit beginnen (oder das laufende weiterführen)
   Store.startWorkout(plan.id, unit.id);
 
@@ -250,7 +261,7 @@ function renderWorkout(container, plan, unitId) {
       <li class="exercise-card workout-card ${isDone ? "done" : ""} ${isSkipped ? "skipped" : ""}"
         style="view-transition-name: ex-${exercise.id}">
         ${leftControl}
-        <a class="card-main" href="#training/${unit.id}/${exercise.id}">
+        <a class="card-main" href="#start/${unit.id}/${exercise.id}">
           <span class="exercise-name">${escapeHtml(exercise.name)}</span>
           <span class="exercise-meta">${setsSummary(exercise)}</span>
         </a>
@@ -278,15 +289,18 @@ function renderWorkout(container, plan, unitId) {
   // Übersprungene zählen nicht mit: "2 von 3 erledigt"
   const total = exercises.length - skipped.length;
 
+  // "Training beenden" steht oben, damit man es nach der letzten Übung
+  // nicht erst suchen muss. Sind alle erledigt, wird der Knopf grün.
   container.innerHTML = `
-    <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${total} erledigt</p>
+    <div class="workout-top">
+      <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${total} erledigt</p>
+      <button class="finish-button ${allDone ? "ready" : ""}" data-action="finish-workout">Training beenden</button>
+    </div>
     ${allDone
       ? `<p class="all-done">Alle Übungen erledigt. Stark!</p>`
       : `<ul class="card-list">${open.map(card).join("")}</ul>`}
     ${doneSection}
     ${skippedSection}
-    <button class="${allDone ? "button-primary button-wide finish-button" : "button-secondary"}"
-      data-action="finish-workout">Training beenden</button>
   `;
 }
 
@@ -338,10 +352,10 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   const unit = Store.getUnit(plan.id, unitId);
   const exercise = Store.getExercise(exerciseId);
   if (!unit || !exercise) {
-    location.hash = "training/" + unitId;
+    location.hash = "start/" + unitId;
     return;
   }
-  setHeader(exercise.name, "#training/" + unit.id);
+  setHeader(exercise.name, "#start/" + unit.id);
   // Falls man direkt über einen Link hier gelandet ist
   Store.startWorkout(plan.id, unit.id);
 
@@ -350,9 +364,9 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   const nextExercise = Store.getExercise(unit.exerciseIds[index + 1]);
 
   const nextLink = nextExercise
-    ? `<a class="button-secondary" href="#training/${unit.id}/${nextExercise.id}">
+    ? `<a class="button-secondary" href="#start/${unit.id}/${nextExercise.id}">
          Nächste Übung: ${escapeHtml(nextExercise.name)} ›</a>`
-    : `<a class="button-secondary" href="#training/${unit.id}">Zurück zur Übersicht</a>`;
+    : `<a class="button-secondary" href="#start/${unit.id}">Zurück zur Übersicht</a>`;
 
   const intro = `
     <p class="intro">
@@ -430,11 +444,18 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       ${renderTimerCard(exercise.id)}
     </div>
     ${nextLink}
+    <div id="history" data-exercise="${exercise.id}">
+      ${renderExerciseHistory(exercise.id, historyMetric)}
+    </div>
     ${Store.isExerciseDone(exercise.id)
       ? ""
       : `<button class="text-button" data-action="toggle-skip" data-id="${exercise.id}">Heute überspringen</button>`}
   `;
 }
+
+// Welche Kennzahl der Verlauf zeigt: "weight" (Gewicht) oder "volume".
+// Bleibt beim Wechsel zwischen Übungen erhalten.
+let historyMetric = "weight";
 
 // Zahl für ein Eingabefeld: null -> "", 62.5 -> "62,5" (deutsches Komma)
 function formatNumber(value) {
@@ -560,7 +581,7 @@ function renderIsland() {
     </button>
 
     <div class="island-expanded">
-      <a class="island-info" href="#training/${unitId}/${exerciseId}" data-island="goto">
+      <a class="island-info" href="#start/${unitId}/${exerciseId}" data-island="goto">
         <span class="island-caption">${escapeHtml(exerciseName)}</span>
         <span class="island-big">${status === "done" ? "Pause vorbei" : `<span class="island-time">${time}</span>`}</span>
       </a>
@@ -944,6 +965,14 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Umschalter im Verlauf: nur den Verlaufsbereich neu zeichnen
+  if (action === "history-metric") {
+    historyMetric = button.dataset.metric;
+    const history = document.getElementById("history");
+    history.innerHTML = renderExerciseHistory(history.dataset.exercise, historyMetric);
+    return;
+  }
+
   // Übung abhaken bzw. Haken entfernen
   if (action === "toggle-done") {
     Store.toggleExerciseDone(exerciseId);
@@ -971,12 +1000,12 @@ appMain.addEventListener("click", (event) => {
     }
     Store.finishWorkout();
     RestTimer.reset(); // Ein laufender Pausentimer gehört zum beendeten Training
-    location.hash = "training";
+    location.hash = "start";
     return;
   }
 
   // Sätze hinzufügen/entfernen. Auf der Übungsseite steht die id der
-  // Übung an zweiter Stelle der Adresse: #training/<einheit>/<übung>
+  // Übung an zweiter Stelle der Adresse: #start/<einheit>/<übung>
   if (action === "add-set" || action === "remove-set") {
     const currentExerciseId = parseHash().params[1];
     if (action === "add-set") {
