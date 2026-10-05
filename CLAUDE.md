@@ -98,11 +98,18 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] Zusatz: aktiver Plan, Einheiten auf der Trainingsseite mit „Zuletzt“ und „Heute dran“, Einheiten per Drag and Drop sortierbar
 - [x] 6. Pausentimer (vorgezogen; `js/timer.js`)
 - [x] 4. Training starten, Übungen abhaken, Sätze mit Gewicht und Wiederholungen erfassen, Training beenden
+- [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
+
+## Datensicherheit (Entscheidung)
+
+- Daten liegen lokal auf dem Gerät (localStorage). Eine reine Web-App kann nicht garantieren, dass sie das Löschen der Browserdaten übersteht.
+- Schutz deshalb: App als Home-Bildschirm-App installieren, dauerhaften Speicher anfordern und regelmäßige Sicherung als Datei in iCloud Drive (Erinnerung in der App, fester Dateiname `gym-tracker-backup.json`, wird beim Sichern ersetzt). Wiederherstellen über „Importieren“.
+- Die App soll mit meiner Freundin geteilt werden (Link zu GitHub Pages). Jede Person hat ihre eigenen, getrennten Daten auf ihrem iPhone.
 
 ## Spätere Ideen (noch nicht bauen)
 
 - Eigene Trainingspläne anlegen und bearbeiten
-- Cloud-Speicherung mit Accounts
+- Cloud-Speicherung mit Accounts, damit wir die App zusammen nutzen können (z.B. gemeinsame Pläne, Verlauf der anderen sehen). Vorbereitet: Alle Daten laufen über `storage.js`, alle Einträge haben eindeutige ids, das Datenformat hat eine Versionsnummer. Die Daten sollen dann zusätzlich lokal bleiben (offline im Studio nutzbar), beim ersten Anmelden werden die lokalen Daten hochgeladen.
 - Persönliche Rekorde

@@ -4,8 +4,15 @@
 // So lässt sich die Speicherung später austauschen (z.B. gegen eine Cloud),
 // ohne den Rest der App anzufassen.
 //
-// Im Moment liegen die Daten nur im Arbeitsspeicher, nach dem Neuladen ist
-// also alles wieder im Ausgangszustand. Dauerhaftes Speichern folgt in Schritt 7.
+// Gespeichert wird im "localStorage" des Browsers: ein kleiner, dauerhafter
+// Speicher auf dem Gerät, in dem man Text unter einem Namen ablegen kann.
+// Wir wandeln alle Daten in einen langen Text um (JSON) und legen ihn
+// unter dem Namen "gym-tracker-data" ab:
+// - Beim Start der App: Text lesen und zurück in Daten verwandeln (load)
+// - Nach jeder Änderung: alles neu als Text ablegen (save)
+// localStorage reicht für viele Jahre Trainingsdaten (etwa 5 MB Platz,
+// ein Jahr Training sind ca. 300 KB) und ist viel einfacher als die
+// Alternative IndexedDB, eine richtige Datenbank im Browser.
 //
 // Aufbau der Daten:
 // - exercises: der Übungs-Pool. Jede Übung gibt es genau einmal, mit
@@ -92,6 +99,94 @@ let activePlanId = null;
 let workouts = [];
 let currentWorkout = null;
 
+// ===== Dauerhaft speichern und laden =====
+
+// Unter diesem Namen liegen die Daten im localStorage
+const STORAGE_KEY = "gym-tracker-data";
+
+// Version des Datenformats. Ändern wir später den Aufbau der Daten (z.B.
+// für die Cloud), erhöhen wir diese Zahl. Die App erkennt dann alte Daten
+// und kann sie umwandeln, statt sie falsch zu lesen.
+const DATA_VERSION = 1;
+
+// Alle Daten als Text ablegen. Wird nach jeder Änderung aufgerufen.
+function save() {
+  const data = {
+    version: DATA_VERSION,
+    savedAt: new Date().toISOString(),
+    plans: plans,
+    exercises: exercises,
+    activePlanId: activePlanId,
+    workouts: workouts,
+    currentWorkout: currentWorkout,
+  };
+  // try/catch fängt Fehler ab, damit die App nicht abstürzt, z.B. wenn
+  // der Speicher voll ist oder der Browser das Speichern verbietet
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error("Speichern fehlgeschlagen:", error);
+    if (!save.warned) {
+      save.warned = true; // Nur einmal warnen, nicht bei jedem Tastendruck
+      alert("Deine Daten konnten nicht gespeichert werden. Bitte mach im Tab „Daten“ eine Sicherung.");
+    }
+  }
+}
+
+// Gespeicherte Daten beim Start einlesen. Gibt es keine, bleiben die
+// Ausgangswerte von oben (Vorlagen, leerer Pool).
+function load() {
+  let text = null;
+  try {
+    text = localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error("Lesen fehlgeschlagen:", error);
+    return;
+  }
+  if (!text) return; // Erster Start: noch nichts gespeichert
+
+  try {
+    const data = migrate(JSON.parse(text));
+    plans = data.plans;
+    exercises = data.exercises;
+    activePlanId = data.activePlanId;
+    workouts = data.workouts;
+    currentWorkout = data.currentWorkout;
+  } catch (error) {
+    // Daten sind beschädigt oder unlesbar. Nicht löschen, sondern unter
+    // einem zweiten Namen beiseitelegen, damit man sie notfalls retten kann.
+    console.error("Gespeicherte Daten unlesbar:", error);
+    try {
+      localStorage.setItem(STORAGE_KEY + "-defekt-" + Date.now(), text);
+    } catch (e) {
+      // Wenn auch das nicht geht, können wir nichts weiter tun
+    }
+    alert("Deine gespeicherten Daten konnten nicht gelesen werden. Die App startet leer. Du kannst eine Sicherung im Tab „Daten“ importieren.");
+  }
+}
+
+// Bringt Daten aus älteren Versionen auf den aktuellen Stand.
+// Im Moment gibt es nur Version 1, später kommen hier Umwandlungen hinzu,
+// z.B.: if (data.version === 1) { ...umbauen...; data.version = 2; }
+function migrate(data) {
+  if (!data || typeof data !== "object" || !Array.isArray(data.plans)) {
+    throw new Error("Unbekanntes Datenformat");
+  }
+  if (data.version > DATA_VERSION) {
+    throw new Error("Daten stammen aus einer neueren App-Version");
+  }
+  return data;
+}
+
+// Den Browser bitten, unsere Daten dauerhaft zu behalten und nicht bei
+// Speicherknappheit von selbst aufzuräumen. Nicht jeder Browser kennt
+// das; dann passiert einfach nichts.
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist();
+}
+
+load();
+
 const Store = {
   // ----- Muskelgruppen -----
 
@@ -123,6 +218,7 @@ const Store = {
       restSeconds: DEFAULT_REST_SECONDS, // Pausenzeit, die sich die Übung merkt
     };
     exercises.push(exercise);
+    save();
     return structuredClone(exercise);
   },
 
@@ -135,6 +231,7 @@ const Store = {
   setRestSeconds(exerciseId, seconds) {
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     if (exercise) exercise.restSeconds = seconds;
+    save();
   },
 
   // Übung aus dem Pool löschen, und damit auch aus allen Einheiten
@@ -146,6 +243,7 @@ const Store = {
         unit.exerciseIds = unit.exerciseIds.filter((id) => id !== exerciseId);
       });
     });
+    save();
   },
 
   // In wie vielen Einheiten eine Übung vorkommt (für die Rückfrage beim Löschen)
@@ -181,6 +279,7 @@ const Store = {
 
   setActivePlan(planId) {
     activePlanId = planId;
+    save();
   },
 
   // Neue Reihenfolge der Einheiten eines Plans übernehmen (nach Drag and Drop)
@@ -195,6 +294,7 @@ const Store = {
     if (reordered.length === plan.units.length) {
       plan.units = reordered;
     }
+    save();
   },
 
   // ----- Trainings -----
@@ -223,6 +323,7 @@ const Store = {
       startedAt: new Date().toISOString(), // Zeitpunkt als Text, z.B. "2026-10-05T18:30:00.000Z"
       exercises: {},
     };
+    save();
   },
 
   // Die Sätze einer Übung im laufenden Training
@@ -237,6 +338,7 @@ const Store = {
     const entry = workoutEntry(exerciseId);
     if (!entry || !entry.sets[index]) return;
     entry.sets[index][field] = value;
+    save();
   },
 
   // Satz hinzufügen. Er übernimmt Gewicht und Wiederholungen vom letzten Satz.
@@ -247,6 +349,7 @@ const Store = {
     // { ...last } erstellt eine Kopie des letzten Satzes
     entry.sets.push(last ? { ...last } : { weight: null, reps: null });
     rememberSetCount(exerciseId, entry.sets.length);
+    save();
   },
 
   // Ist die Übung im laufenden Training abgehakt bzw. übersprungen?
@@ -266,6 +369,7 @@ const Store = {
     if (!entry) return;
     entry.done = !entry.done;
     if (entry.done) entry.skipped = false;
+    save();
   },
 
   // Übung für dieses Training überspringen bzw. zurückholen
@@ -274,6 +378,7 @@ const Store = {
     if (!entry) return;
     entry.skipped = !entry.skipped;
     if (entry.skipped) entry.done = false;
+    save();
   },
 
   // Was wurde bei dieser Übung zuletzt gemacht? Sucht im Verlauf das neueste
@@ -328,6 +433,7 @@ const Store = {
       workouts.push(finished);
     }
     currentWorkout = null;
+    save();
   },
 
   // Letzten Satz entfernen (mindestens einer bleibt)
@@ -336,6 +442,7 @@ const Store = {
     if (!entry || entry.sets.length <= 1) return;
     entry.sets.pop(); // pop() entfernt das letzte Element
     rememberSetCount(exerciseId, entry.sets.length);
+    save();
   },
 
   // ----- Einheiten -----
@@ -351,6 +458,7 @@ const Store = {
     const unit = findUnit(planId, unitId);
     if (!unit || unit.exerciseIds.includes(exerciseId)) return;
     unit.exerciseIds.push(exerciseId);
+    save();
   },
 
   // Übung aus der Einheit entfernen (im Pool bleibt sie erhalten)
@@ -358,6 +466,7 @@ const Store = {
     const unit = findUnit(planId, unitId);
     if (!unit) return;
     unit.exerciseIds = unit.exerciseIds.filter((id) => id !== exerciseId);
+    save();
   },
 
   // Neue Reihenfolge der Übungen einer Einheit übernehmen (nach Drag and Drop)
@@ -366,6 +475,7 @@ const Store = {
     if (!unit) return;
     // Sicherheitshalber nur ids übernehmen, die wirklich zur Einheit gehören
     unit.exerciseIds = orderedIds.filter((id) => unit.exerciseIds.includes(id));
+    save();
   },
 };
 
