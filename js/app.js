@@ -183,6 +183,7 @@ function renderStart(unitId, exerciseId) {
   // Noch kein Plan aktiviert -> Widgets und Hinweis mit Weg zu den Plänen
   if (!plan) {
     container.innerHTML = `
+      ${renderBackupBanner()}
       ${renderWidgets()}
       <h2 class="section-title">Training starten</h2>
       <p class="placeholder">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
@@ -234,7 +235,8 @@ function renderStart(unitId, exerciseId) {
   // Oben die wischbaren Widgets, darunter (gut mit dem Daumen erreichbar)
   // die Einheiten zum Starten
   container.innerHTML = `
-    ${renderWidgets()}
+    ${renderBackupBanner()}
+      ${renderWidgets()}
     <h2 class="section-title">Training starten · ${escapeHtml(plan.name)}</h2>
     <ul class="card-list">${cards}</ul>
     <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>
@@ -1059,10 +1061,140 @@ function renderSettings() {
     ${days.size === 0
       ? `<p class="placeholder">Noch keine Trainings. Nach deinem ersten Training erscheint hier dein Kalender.</p>`
       : `${legend}<div class="month-list">${months}</div>`}
-    <h2 class="section-title">Sicherung</h2>
-    <p class="placeholder">Export und Import (Sicherung in iCloud Drive) kommen im nächsten Schritt.</p>
+    ${renderBackupSection()}
   `;
 }
+
+// ===== Sicherung =====
+// Die Daten selbst liefert storage.js (exportData, importData). Hier geht
+// es um die Bedienung: Datei teilen bzw. herunterladen, Datei auswählen.
+
+const BACKUP_FILE_NAME = "gym-tracker-backup.json";
+
+// Wolke mit Pfeil nach oben, als Symbol für die Sicherung
+const BACKUP_ICON = `<svg class="backup-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18.5h10.5a4 4 0 0 0 .6-8A6 6 0 0 0 6.5 9a4.8 4.8 0 0 0 .5 9.5z"/><path d="M12 16v-6m-2.5 2.5L12 10l2.5 2.5"/></svg>`;
+
+// "heute", "gestern", "vor 3 Tagen" für die letzte Sicherung
+function backupAgoText(isoText) {
+  if (!isoText) return "Noch nie";
+  const text = lastDoneText(new Date(isoText)); // z.B. "Zuletzt vor 3 Tagen"
+  return text.replace("Zuletzt ", "");
+}
+
+// Hinweis oben auf der Startseite, wenn eine Sicherung fällig ist
+function renderBackupBanner() {
+  const status = Store.getBackupStatus();
+  if (!status.due) return "";
+  const detail =
+    status.unsavedCount === 1
+      ? "1 Training ist noch nicht gesichert."
+      : `${status.unsavedCount} Trainings sind noch nicht gesichert.`;
+  return `
+    <div class="backup-banner">
+      ${BACKUP_ICON}
+      <div class="backup-banner-text">
+        <strong>Zeit für eine Sicherung</strong>
+        <span>${detail}</span>
+      </div>
+      <div class="backup-banner-actions">
+        <button class="text-button" data-action="backup-snooze">Später</button>
+        <button class="pill-button" data-action="backup-export">Sichern</button>
+      </div>
+    </div>
+  `;
+}
+
+// Abschnitt "Sicherung" in den Einstellungen
+function renderBackupSection() {
+  const status = Store.getBackupStatus();
+  const sub =
+    status.unsavedCount === 0
+      ? "Alles gesichert"
+      : `${status.unsavedCount} ${status.unsavedCount === 1 ? "Training" : "Trainings"} noch nicht gesichert`;
+  return `
+    <h2 class="section-title">Sicherung</h2>
+    <div class="settings-row">
+      <span class="settings-label">
+        Letzte Sicherung
+        <span class="settings-sub">${sub}</span>
+      </span>
+      <span class="settings-value">${backupAgoText(status.lastBackupAt)}</span>
+    </div>
+    <div class="set-buttons">
+      <button class="pill-button" data-action="backup-export">Sichern</button>
+      <button class="pill-button" data-action="backup-import">Importieren</button>
+    </div>
+    <p class="settings-hint">
+      Tippe auf „Sichern“, wähle „In Dateien sichern“ und dann einen Ordner in iCloud Drive.
+      Nimm immer denselben Ordner, dann ersetzt die neue Sicherung die alte.
+    </p>
+  `;
+}
+
+// Sicherung erstellen. Auf dem iPhone öffnet sich das Teilen-Menü
+// ("In Dateien sichern"), sonst wird die Datei heruntergeladen.
+// "async" heißt: Die Funktion kann auf etwas warten (hier: bis man im
+// Teilen-Menü fertig ist), ohne die App zu blockieren.
+async function exportBackup() {
+  const text = Store.exportData();
+  let file = new File([text], BACKUP_FILE_NAME, { type: "application/json" });
+  // Manche Browser teilen keine .json-Dateien; dann als einfacher Text
+  if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+    file = new File([text], BACKUP_FILE_NAME, { type: "text/plain" });
+  }
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Gym-Tracker Sicherung" });
+      Store.markBackupDone();
+    } catch (error) {
+      // "AbortError" = im Teilen-Menü abgebrochen. Das ist kein Fehler.
+      if (error.name !== "AbortError") {
+        alert("Die Sicherung konnte nicht geteilt werden: " + error.message);
+      }
+    }
+  } else {
+    // Herunterladen: unsichtbaren Link auf die Datei anlegen und anklicken
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = BACKUP_FILE_NAME;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // Speicher wieder freigeben
+    Store.markBackupDone();
+  }
+  renderCurrentView();
+}
+
+// Sicherung einspielen, sobald eine Datei ausgewählt wurde
+document.getElementById("import-input").addEventListener("change", async (event) => {
+  const input = event.target;
+  const file = input.files[0];
+  input.value = ""; // Zurücksetzen, damit dieselbe Datei erneut wählbar ist
+  if (!file) return;
+
+  const text = await file.text(); // Inhalt der Datei als Text lesen
+  try {
+    const info = Store.inspectBackup(text);
+    const when = new Date(info.exportedAt).toLocaleString("de-DE", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    const question =
+      `Sicherung vom ${when} einspielen?\n\n` +
+      `Sie enthält ${info.workoutCount} Trainings und ${info.exerciseCount} Übungen.\n` +
+      `Deine aktuellen Daten in der App werden dabei ersetzt.`;
+    if (!confirm(question)) return;
+    Store.importData(text);
+    RestTimer.reset();
+    alert("Die Sicherung wurde eingespielt.");
+    location.hash = "start";
+    renderCurrentView();
+  } catch (error) {
+    alert(error.message);
+  }
+});
 
 // ===== Reaktionen auf Eingaben =====
 // Der Inhalt wird bei jeder Änderung neu gezeichnet, Knöpfe und Formulare
@@ -1113,6 +1245,21 @@ appMain.addEventListener("click", (event) => {
   // Timer-Knöpfe haben ihren eigenen Behandler (siehe oben)
   if (action.startsWith("timer-")) {
     handleTimerAction(button);
+    return;
+  }
+
+  // Sicherung
+  if (action === "backup-export") {
+    exportBackup();
+    return;
+  }
+  if (action === "backup-import") {
+    document.getElementById("import-input").click(); // Dateiauswahl öffnen
+    return;
+  }
+  if (action === "backup-snooze") {
+    Store.snoozeBackupReminder();
+    renderCurrentView();
     return;
   }
 

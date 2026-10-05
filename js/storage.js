@@ -103,6 +103,8 @@ let currentWorkout = null;
 // z.B. [{ from: "0000-01-01", goal: 3 }, { from: "2026-10-05", goal: 4 }]
 // vacations: Urlaubszeiten. "to" ist null, solange der Urlaub noch läuft.
 // z.B. [{ from: "2026-08-03", to: "2026-08-16" }, { from: "2026-10-05", to: null }]
+// lastBackupAt: wann zuletzt eine Sicherung erstellt wurde (oder fehlt).
+// backupSnoozedUntil: bis wann die Erinnerung "Später" pausiert (oder fehlt).
 let settings = { weeklyGoals: [], vacations: [] };
 
 // ===== Dauerhaft speichern und laden =====
@@ -115,9 +117,9 @@ const STORAGE_KEY = "gym-tracker-data";
 // und kann sie umwandeln, statt sie falsch zu lesen.
 const DATA_VERSION = 3; // 2: Wochenziel, 3: Urlaubsmodus
 
-// Alle Daten als Text ablegen. Wird nach jeder Änderung aufgerufen.
-function save() {
-  const data = {
+// Alle Daten in einem Objekt zusammenstellen (für Speichern und Export)
+function snapshot() {
+  return {
     version: DATA_VERSION,
     savedAt: new Date().toISOString(),
     plans: plans,
@@ -127,6 +129,21 @@ function save() {
     currentWorkout: currentWorkout,
     settings: settings,
   };
+}
+
+// Gelesene Daten übernehmen (für Laden und Import)
+function applyData(data) {
+  plans = data.plans;
+  exercises = data.exercises;
+  activePlanId = data.activePlanId;
+  workouts = data.workouts;
+  currentWorkout = data.currentWorkout;
+  settings = data.settings;
+}
+
+// Alle Daten als Text ablegen. Wird nach jeder Änderung aufgerufen.
+function save() {
+  const data = snapshot();
   // try/catch fängt Fehler ab, damit die App nicht abstürzt, z.B. wenn
   // der Speicher voll ist oder der Browser das Speichern verbietet
   try {
@@ -135,7 +152,7 @@ function save() {
     console.error("Speichern fehlgeschlagen:", error);
     if (!save.warned) {
       save.warned = true; // Nur einmal warnen, nicht bei jedem Tastendruck
-      alert("Deine Daten konnten nicht gespeichert werden. Bitte mach im Tab „Daten“ eine Sicherung.");
+      alert("Deine Daten konnten nicht gespeichert werden. Bitte erstelle unter „Einstellungen“ eine Sicherung.");
     }
   }
 }
@@ -153,13 +170,7 @@ function load() {
   if (!text) return; // Erster Start: noch nichts gespeichert
 
   try {
-    const data = migrate(JSON.parse(text));
-    plans = data.plans;
-    exercises = data.exercises;
-    activePlanId = data.activePlanId;
-    workouts = data.workouts;
-    currentWorkout = data.currentWorkout;
-    settings = data.settings;
+    applyData(migrate(JSON.parse(text)));
   } catch (error) {
     // Daten sind beschädigt oder unlesbar. Nicht löschen, sondern unter
     // einem zweiten Namen beiseitelegen, damit man sie notfalls retten kann.
@@ -169,8 +180,26 @@ function load() {
     } catch (e) {
       // Wenn auch das nicht geht, können wir nichts weiter tun
     }
-    alert("Deine gespeicherten Daten konnten nicht gelesen werden. Die App startet leer. Du kannst eine Sicherung im Tab „Daten“ importieren.");
+    alert("Deine gespeicherten Daten konnten nicht gelesen werden. Die App startet leer. Du kannst unter „Einstellungen“ eine Sicherung importieren.");
   }
+}
+
+// Liest eine Sicherungsdatei und bringt sie auf den aktuellen Stand.
+// Wirft einen verständlichen Fehler, wenn es keine passende Datei ist.
+function parseBackup(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw new Error("Die Datei ist keine gültige Sicherung.");
+  }
+  if (!data || data.app !== "gym-tracker") {
+    throw new Error("Die Datei ist keine Sicherung dieser App.");
+  }
+  if (data.version > DATA_VERSION) {
+    throw new Error("Die Sicherung stammt aus einer neueren Version der App.");
+  }
+  return migrate(data);
 }
 
 // Bringt Daten aus älteren Versionen Schritt für Schritt auf den
@@ -339,6 +368,67 @@ const Store = {
     settings.weeklyGoals.push({ from: from, goal: goal });
     settings.weeklyGoals.sort((a, b) => a.from.localeCompare(b.from));
     save();
+  },
+
+  // ----- Sicherung (Export und Import) -----
+
+  // Alle Daten als Text für die Sicherungsdatei. "app" kennzeichnet die
+  // Datei, damit beim Import keine fremde Datei eingelesen wird.
+  exportData() {
+    return JSON.stringify({ app: "gym-tracker", exportedAt: new Date().toISOString(), ...snapshot() }, null, 2);
+  },
+
+  // Vorab prüfen, was in einer Sicherungsdatei steckt, ohne etwas zu
+  // ändern. Wirft einen Fehler, wenn die Datei nicht passt.
+  // Ergebnis: { exportedAt, workoutCount, exerciseCount }
+  inspectBackup(text) {
+    const data = parseBackup(text);
+    return {
+      exportedAt: data.exportedAt || data.savedAt,
+      workoutCount: data.workouts.length,
+      exerciseCount: data.exercises.length,
+    };
+  },
+
+  // Sicherung einspielen: ersetzt ALLE aktuellen Daten. Die bisherigen
+  // Daten werden vorher noch einmal intern beiseitegelegt.
+  importData(text) {
+    const data = parseBackup(text);
+    try {
+      localStorage.setItem(STORAGE_KEY + "-vor-import", JSON.stringify(snapshot()));
+    } catch (error) {
+      // Kein Platz für die Kopie: Import trotzdem durchführen
+    }
+    applyData(data);
+    save();
+  },
+
+  // Nach einer erfolgreichen Sicherung aufrufen
+  markBackupDone() {
+    settings.lastBackupAt = new Date().toISOString();
+    delete settings.backupSnoozedUntil;
+    save();
+  },
+
+  // Erinnerung für einen Tag pausieren ("Später")
+  snoozeBackupReminder() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    settings.backupSnoozedUntil = tomorrow.toISOString();
+    save();
+  },
+
+  // Stand der Sicherung: wann zuletzt gesichert, wie viele Trainings seitdem
+  // neu sind und ob eine Erinnerung fällig ist (5 neue Trainings, oder das
+  // älteste ungesicherte Training ist über eine Woche her).
+  getBackupStatus() {
+    const last = settings.lastBackupAt || null;
+    const unsaved = workouts.filter((w) => !last || w.date > last);
+    const oldest = unsaved.length > 0 ? new Date(Math.min(...unsaved.map((w) => new Date(w.date)))) : null;
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const snoozed = settings.backupSnoozedUntil && new Date(settings.backupSnoozedUntil) > new Date();
+    const due = !snoozed && (unsaved.length >= 5 || (oldest !== null && oldest < weekAgo));
+    return { lastBackupAt: last, unsavedCount: unsaved.length, due: due };
   },
 
   // ----- Urlaubsmodus -----

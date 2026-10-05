@@ -42,6 +42,10 @@
        Erscheint nur, solange ein Timer aktiv ist. Inhalt kommt aus app.js. -->
   <div id="island" class="island" hidden></div>
 
+  <!-- Unsichtbares Feld zur Dateiauswahl. "Sicherung importieren" klickt
+       es per JavaScript an; auf dem iPhone öffnet sich die Dateien-App. -->
+  <input type="file" id="import-input" accept=".json,application/json,text/plain" hidden>
+
   <!-- Navigationsleiste unten: dort gut mit dem Daumen erreichbar.
        Die Symbole sind kleine SVG-Grafiken aus Linien (angelehnt an Apples
        SF-Symbols). "currentColor" heißt: Sie übernehmen die Textfarbe des

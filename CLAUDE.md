@@ -143,6 +143,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] 4. Training starten, Übungen abhaken, Sätze mit Gewicht und Wiederholungen erfassen, Training beenden
 - [x] Wochen-Streak mit Wochenziel und Urlaubsmodus, Tab „Einstellungen“ mit aufklappbarer Monatsübersicht (Datenformat Version 3)
 - [x] 8. Verlauf pro Übung (Diagramm Gewicht/Volumen) und Startseite mit Widgets
+- [x] 9. Export und Import (Sicherung in iCloud Drive mit Erinnerung, siehe „Nächste Funktionen“ Punkt 1)
 - [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
@@ -155,7 +156,7 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 
 ## Nächste Funktionen (beschlossen, in dieser Reihenfolge)
 
-1. **Sicherung**: Export aller Daten als Datei nach iCloud Drive (fester Name `gym-tracker-backup.json`, Teilen-Menü von iOS), Erinnerung nach 5 Trainings oder spätestens 1 Woche, Import zum Wiederherstellen. Anzeige „Letzte Sicherung vor X Tagen“ in den Einstellungen.
+1. ✅ **Sicherung** (erledigt): Export aller Daten als Datei nach iCloud Drive (fester Name `gym-tracker-backup.json`, Teilen-Menü von iOS), Erinnerung nach 5 Trainings oder spätestens 1 Woche, Import zum Wiederherstellen. Anzeige „Letzte Sicherung vor X Tagen“ in den Einstellungen.
 2. **Übungen bearbeiten**: Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
 3. **Notiz pro Übung**: kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
 4. **Aufwärmsatz**: Jede Übung startet standardmäßig mit einem Aufwärmsatz „W“ vor den Arbeitssätzen, entfernbar (die Übung merkt sich das). Vorgeschlagenes Gewicht: etwa 50 % des Arbeitsgewichts, auf eine sinnvolle Stufe gerundet. Aufwärmsätze zählen nicht für Volumen, Rekorde, Vorschläge, „Letztes Mal“.

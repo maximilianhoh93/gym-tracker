@@ -2041,3 +2041,68 @@ body.has-island .back-link {
   font-size: 15px;
   font-weight: 400;
 }
+
+/* ===== Sicherung ===== */
+/* Hinweis oben auf der Startseite, wenn eine Sicherung fällig ist */
+.backup-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.backup-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.backup-banner-text {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  font-size: 15px;
+}
+
+.backup-banner-text span {
+  color: var(--text-muted);
+}
+
+/* Knöpfe "Später" und "Sichern" rechts bzw. darunter */
+.backup-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.backup-banner-actions .text-button {
+  width: auto;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 999px;
+}
+
+.backup-banner-actions .pill-button {
+  flex: none;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+}
+
+/* Wert rechts in einer Einstellungszeile, z.B. "vor 3 Tagen" */
+.settings-value {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
