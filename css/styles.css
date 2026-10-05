@@ -11,7 +11,10 @@
   --green: #34c759;  /* Apples Systemfarben, wie in der Timer-App */
   --orange: #ff9500;
   --gray-button: rgba(120, 120, 128, 0.16);
-  --tab-height: 64px;
+  --tab-inactive: #8e8e93; /* Apples Systemgrau für inaktive Tabs */
+  --bar-bg: rgba(249, 249, 249, 0.82); /* Leicht durchscheinend */
+  --hover: rgba(120, 120, 128, 0.08); /* Hervorhebung beim Darüberfahren */
+  --tab-height: 56px;
 }
 
 /* Dunkelmodus: greift automatisch, wenn das iPhone auf "Dunkel" steht */
@@ -26,6 +29,9 @@
     --green: #30d158;
     --orange: #ff9f0a;
     --gray-button: rgba(120, 120, 128, 0.32);
+    --tab-inactive: #8e8e93;
+    --bar-bg: rgba(28, 28, 30, 0.82);
+    --hover: rgba(120, 120, 128, 0.18);
   }
 }
 
@@ -78,17 +84,22 @@ body {
   color: var(--text-muted);
 }
 
-/* ===== Navigationsleiste unten ===== */
+/* ===== Navigationsleiste unten (im Stil der iOS-Tab-Leiste) ===== */
 .tab-bar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 30;
   display: flex;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  /* Abstand zum Home-Balken des iPhones */
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 8px env(safe-area-inset-bottom); /* Abstand zum Home-Balken */
+  /* Durchscheinender, verschwommener Hintergrund wie bei iOS:
+     Inhalt, der darunter durchscrollt, schimmert unscharf durch */
+  background: var(--bar-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  /* Hauchdünne Trennlinie (0.5px wirkt auf dem iPhone wie bei Apple) */
+  border-top: 0.5px solid var(--border);
 }
 
 .tab {
@@ -98,26 +109,40 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--text-muted);
+  gap: 3px;
+  margin: 4px 2px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--tab-inactive);
   text-decoration: none;
+  transition: color 0.15s, background 0.15s;
 }
 
+/* Linien-Symbol; Farbe kommt über "currentColor" vom Tab */
 .tab-icon {
-  font-size: 24px;
-  filter: grayscale(1); /* Inaktive Tabs grau */
-  opacity: 0.6;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-/* Der gerade aktive Tab wird farbig hervorgehoben */
+/* Der aktive Tab: blau und mit etwas kräftigeren Linien */
 .tab.active {
   color: var(--accent);
 }
 
 .tab.active .tab-icon {
-  filter: none;
-  opacity: 1;
+  stroke-width: 2.1;
+}
+
+/* Kurzes Feedback beim Antippen */
+.tab:active .tab-icon {
+  transform: scale(0.9);
 }
 
 /* ===== Zurück-Link in der Kopfzeile ===== */
@@ -204,10 +229,6 @@ body {
   margin-left: 6px;
 }
 
-/* Der aktive Plan bekommt einen farbigen Rahmen */
-.card.active-plan {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
 
 .active-note {
   margin: 0 0 8px;
@@ -464,10 +485,6 @@ body {
   opacity: 0.6;
 }
 
-/* Die Einheit, die heute dran ist, bekommt einen farbigen Rahmen */
-.unit-card.next {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
 
 .chevron {
   flex-shrink: 0;
@@ -1024,6 +1041,8 @@ button.button-secondary {
 .widget {
   flex: 0 0 100%; /* Jedes Widget so breit wie der Inhaltsbereich */
   scroll-snap-align: start;
+  /* Beim Wischen nie über ein Widget hinwegspringen, immer nur eins weiter */
+  scroll-snap-stop: always;
   min-height: 150px;
   padding: 16px;
   background: var(--surface);
@@ -1145,19 +1164,37 @@ button.button-secondary {
 .carousel-dots {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 0;
+  margin-top: 6px;
+}
+
+.carousel-dots {
+  /* Punkte sind Knöpfe mit größerer, unsichtbarer Tipp-Fläche */
+  min-height: 20px;
 }
 
 .dot {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* Der sichtbare Punkt wird mit ::before in die Mitte gezeichnet */
+.dot::before {
+  content: "";
+  display: block;
   width: 7px;
   height: 7px;
+  margin: auto;
   border-radius: 50%;
   background: var(--gray-button);
   transition: background 0.2s;
 }
 
-.dot.active {
+.dot.active::before {
   background: var(--text-muted);
 }
 
@@ -1318,4 +1355,48 @@ button.button-secondary {
 .history-volume {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* ===== Hover: Hervorhebung beim Darüberfahren mit der Maus =====
+   Nur auf Geräten mit Maus oder Trackpad. Auf dem iPhone würde der
+   Effekt nach dem Antippen "kleben bleiben", deshalb diese Abfrage. */
+@media (hover: hover) {
+  .tab:hover {
+    background: var(--hover);
+  }
+
+  .tab:not(.active):hover {
+    color: var(--text);
+  }
+
+  /* Karten und Zeilen, die man antippen kann */
+  .card-link:hover,
+  .unit-card:hover,
+  .pick-card:hover,
+  .exercise-card:has(.card-main:hover),
+  .button-secondary:hover,
+  .pill-button:not(:disabled):hover {
+    background: color-mix(in srgb, var(--surface) 95%, var(--text)); /* Kartenfarbe, 5 % zur Textfarbe hin */
+  }
+
+  .icon-button:hover,
+  .step-button:hover,
+  .timer-start-button:hover,
+  .finish-button:not(.ready):hover,
+  .preset:hover,
+  .text-button:hover,
+  .check-button:hover .check,
+  .drag-handle:hover {
+    background-color: var(--hover);
+  }
+
+  .back-link:hover,
+  .hint a:hover,
+  .intro a:hover {
+    opacity: 0.7;
+  }
+
+  .dot:hover::before {
+    background: var(--text-muted);
+  }
 }

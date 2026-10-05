@@ -181,8 +181,10 @@ function renderWidgets() {
     <div class="widget-carousel" aria-label="Statistiken, zum Wechseln wischen">
       ${widgets.map((html) => `<section class="widget">${html}</section>`).join("")}
     </div>
-    <div class="carousel-dots" aria-hidden="true">
-      ${widgets.map((_, i) => `<span class="dot ${i === 0 ? "active" : ""}"></span>`).join("")}
+    <div class="carousel-dots">
+      ${widgets
+        .map((_, i) => `<button class="dot ${i === 0 ? "active" : ""}" data-index="${i}" aria-label="Widget ${i + 1}"></button>`)
+        .join("")}
     </div>
   `;
 }
@@ -204,6 +206,16 @@ document.addEventListener(
   },
   true
 );
+
+// Klick auf einen Punkt springt zum passenden Widget (praktisch mit der Maus)
+document.addEventListener("click", (event) => {
+  const dot = event.target.closest(".carousel-dots .dot");
+  if (!dot) return;
+  const carousel = dot.parentElement.previousElementSibling;
+  const widget = carousel.children[Number(dot.dataset.index)];
+  // offsetLeft = Abstand des Widgets vom Anfang der Reihe; minus Innenabstand
+  carousel.scrollTo({ left: widget.offsetLeft - carousel.firstElementChild.offsetLeft, behavior: "smooth" });
+});
 
 // ===== Verlauf einer Übung =====
 

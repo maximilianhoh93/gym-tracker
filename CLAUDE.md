@@ -88,6 +88,11 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Sprache: Deutsch.
 - Hell- und Dunkelmodus folgen automatisch der Systemeinstellung (`prefers-color-scheme`).
 - Mobile-first für das iPhone: große Tipp-Flächen, gut bedienbar mit einer Hand, Safe Areas beachten.
+- Optik angelehnt an Apple (iOS): Systemfarben, Systemschrift, abgerundete Karten.
+- Tab-Leiste wie bei iOS: schlichte Linien-Symbole (SVG) statt Emojis, einheitlich grau, der aktive Tab blau; leicht durchscheinender, verschwommener Hintergrund.
+- „Heute dran“ und „Aktiv“ werden nur als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
+- Hover-Effekte (Hervorhebung beim Darüberfahren mit der Maus) für Tabs, Karten und Knöpfe, aber nur auf Geräten mit Maus (`@media (hover: hover)`), damit sie auf dem iPhone nicht „kleben bleiben“.
+- Die Widgets auf der Startseite rasten beim Wischen immer genau beim nächsten ein; die Punkte darunter sind anklickbar.
 
 ## Vorgehen
 

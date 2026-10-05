@@ -191,7 +191,7 @@ function renderStart(unitId, exerciseId) {
             : "";
       return `
         <li>
-          <a class="exercise-card unit-card ${(runningId ? unit.id === runningId : isNext) ? "next" : ""}" href="#start/${unit.id}">
+          <a class="exercise-card unit-card" href="#start/${unit.id}">
             <span class="exercise-info">
               <span class="exercise-name">${escapeHtml(unit.name)}</span>
               <span class="exercise-meta">
@@ -734,7 +734,7 @@ function renderPlanList(plans) {
   const cards = plans
     .map(
       (plan) => `
-        <a class="card card-link ${plan.id === activePlanId ? "active-plan" : ""}" href="#plaene/${plan.id}">
+        <a class="card card-link" href="#plaene/${plan.id}">
           <h2 class="card-title">
             ${escapeHtml(plan.name)}
             ${plan.id === activePlanId ? `<span class="badge">Aktiv</span>` : ""}
