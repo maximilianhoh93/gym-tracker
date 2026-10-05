@@ -17,6 +17,13 @@
    den Dunkelmodus müssen nur diese Werte ausgetauscht werden.
    Die Werte sind Apples Systemfarben aus iOS. */
 :root {
+  /* Glas der Tab-Leiste ("Liquid Glass") */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-edge: rgba(255, 255, 255, 0.7);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-lens: rgba(255, 255, 255, 0.75);
+  --glass-lens-edge: rgba(0, 0, 0, 0.06);
+
   /* Hintergründe: grauer Seitenhintergrund, weiße Karten darauf */
   --bg: #f2f2f7;
   --surface: #ffffff;
@@ -61,6 +68,11 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --glass-bg: rgba(44, 44, 46, 0.55);
+    --glass-edge: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.14);
+    --glass-lens: rgba(255, 255, 255, 0.12);
+    --glass-lens-edge: rgba(255, 255, 255, 0.14);
     --bg: #000000;
     --surface: #1c1c1e;
     --text: #ffffff;
@@ -220,8 +232,8 @@ body.scrolled .nav-title {
 /* ===== Inhalt ===== */
 .app-main {
   padding: 0 16px;
-  /* Unten Platz lassen, damit nichts hinter der Tab-Leiste verschwindet */
-  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 24px);
+  /* Unten Platz lassen, damit nichts hinter der schwebenden Tab-Leiste verschwindet */
+  padding-bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 48px);
 }
 
 /* ===== 3. Texte ===== */
@@ -1611,38 +1623,69 @@ body.scrolled .nav-title {
   text-align: center;
 }
 
-/* ===== 7. Tab-Leiste unten (im Stil der iOS-Tab-Leiste) ===== */
+/* ===== 7. Tab-Leiste unten im Stil von Apples "Liquid Glass" =====
+   Eine schwebende Kapsel mit Abstand zu allen Rändern. Durchscheinend: der
+   Inhalt dahinter schimmert stark verschwommen durch. Eine feine helle
+   Kante oben und ein weicher Schatten lassen sie wie Glas wirken. */
 .tab-bar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  /* Abstand nach unten: über dem Home-Balken des iPhones, mindestens 12px */
+  bottom: max(12px, calc(env(safe-area-inset-bottom) - 6px));
   z-index: 30;
   display: flex;
-  padding: 0 8px env(safe-area-inset-bottom); /* Abstand zum Home-Balken */
-  /* Durchscheinender, verschwommener Hintergrund wie bei iOS */
-  background: var(--bar-bg);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--separator);
+  width: min(calc(100% - 32px), 440px);
+  padding: 5px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  backdrop-filter: blur(22px) saturate(190%);
+  /* Feine Kante rundum und ein Lichtreflex oben (inset = innen) */
+  border: 0.5px solid var(--glass-edge);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 10px 30px rgba(0, 0, 0, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Die gleitende Markierung hinter dem aktiven Tab: eine kleinere
+   Glaskapsel mit Umrandung. Position und Breite setzt app.js; durch die
+   "transition" gleitet sie beim Umschalten weich (mit leichtem Nachfedern). */
+.tab-indicator {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--glass-lens);
+  box-shadow:
+    inset 0 0 0 1px var(--glass-lens-edge),
+    inset 0 1px 0 var(--glass-highlight),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 0.45s cubic-bezier(0.3, 1.35, 0.5, 1),
+    width 0.45s cubic-bezier(0.3, 1.35, 0.5, 1);
+  pointer-events: none; /* Fängt keine Fingertipps ab */
 }
 
 .tab {
+  position: relative; /* liegt über der Markierung */
   flex: 1; /* Alle Tabs gleich breit */
   height: var(--tab-height);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  margin: 4px 2px;
-  border-radius: 12px;
+  gap: 2px;
+  border-radius: 999px;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.1px;
   color: var(--tab-inactive);
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.2s, background 0.15s;
 }
 
 /* Linien-Symbol; Farbe kommt über "currentColor" vom Tab */
@@ -1672,7 +1715,8 @@ body.scrolled .nav-title {
    Nur auf Geräten mit Maus oder Trackpad. Auf dem iPhone würde der
    Effekt nach dem Antippen "kleben bleiben", deshalb diese Abfrage. */
 @media (hover: hover) {
-  .tab:hover {
+  /* Nur inaktive Tabs: Der aktive hat schon seine Glas-Markierung */
+  .tab:not(.active):hover {
     background: var(--hover);
   }
 
@@ -2040,7 +2084,7 @@ body.scrolled .nav-title {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 16px);
+  bottom: calc(var(--tab-height) + env(safe-area-inset-bottom) + 34px);
   z-index: 60;
   display: flex;
   align-items: center;

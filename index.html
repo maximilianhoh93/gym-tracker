@@ -46,11 +46,14 @@
        es per JavaScript an; auf dem iPhone öffnet sich die Dateien-App. -->
   <input type="file" id="import-input" accept=".json,application/json,text/plain" hidden>
 
-  <!-- Navigationsleiste unten: dort gut mit dem Daumen erreichbar.
+  <!-- Navigationsleiste unten im Stil von Apples "Liquid Glass": eine
+       schwebende, durchscheinende Kapsel, gut mit dem Daumen erreichbar.
        Die Symbole sind kleine SVG-Grafiken aus Linien (angelehnt an Apples
        SF-Symbols). "currentColor" heißt: Sie übernehmen die Textfarbe des
        Tabs, grau oder blau für den aktiven Tab. -->
   <nav class="tab-bar">
+    <!-- Gleitende Markierung hinter dem aktiven Tab (Position setzt app.js) -->
+    <span class="tab-indicator" aria-hidden="true"></span>
     <a href="#start" class="tab" data-view="start">
       <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1h-4.5v-6.5h-6V21H4.5a1 1 0 0 1-1-1z"/>

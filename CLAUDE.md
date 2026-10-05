@@ -118,7 +118,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
   - Zusammenfassungen von Sätzen bleiben einzeilig: bei wechselndem Gewicht oder mehr als 4 Sätzen kurz als „6 Sätze · 95–102,5 kg“.
   - Symbole als SVG-Grafiken, nicht als Schriftzeichen (die sehen je nach Gerät anders aus).
   - Ein Training gilt erst als „Läuft“, wenn etwas eingetragen, abgehakt oder übersprungen wurde.
-- Tab-Leiste wie bei iOS: schlichte Linien-Symbole (SVG) statt Emojis, einheitlich grau, der aktive Tab blau; leicht durchscheinender, verschwommener Hintergrund.
+- Tab-Leiste im Stil von Apples „Liquid Glass“: schwebende, abgerundete Kapsel mit Abstand zu allen Rändern (berührt den unteren Rand nicht), stark durchscheinend und verschwommen, feine helle Kante und weicher Schatten. Hinter dem aktiven Tab eine kleinere Glas-Kapsel mit Umrandung, die beim Umschalten mit leichtem Nachfedern zum neuen Tab gleitet. Schlichte Linien-Symbole (SVG), inaktiv grau, aktiv blau.
 - „Heute dran“ wird als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
 - Pläne: Der aktive Plan ist grün hinterlegt (dasselbe Grün wie „Pause vorbei“), mit grünem Etikett „Aktiv“.
 - Hover-Effekte (Hervorhebung beim Darüberfahren mit der Maus) für Tabs, Karten und Knöpfe, aber nur auf Geräten mit Maus (`@media (hover: hover)`), damit sie auf dem iPhone nicht „kleben bleiben“.

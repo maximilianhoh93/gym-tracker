@@ -58,6 +58,7 @@ function route() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.view === viewName);
   });
+  moveTabIndicator();
 
   renderCurrentView();
 
@@ -83,6 +84,27 @@ function renderCurrentView() {
     renderSettings(params[0], params[1]);
   }
 }
+
+// Schiebt die Glas-Markierung der Tab-Leiste hinter den aktiven Tab.
+// offsetLeft/offsetWidth = Position und Breite des Tabs in der Leiste.
+// Beim ersten Mal ohne Animation, damit sie nicht von links hereingleitet.
+let tabIndicatorPlaced = false;
+function moveTabIndicator() {
+  const indicator = document.querySelector(".tab-indicator");
+  const active = document.querySelector(".tab.active");
+  if (!indicator || !active) return;
+  if (!tabIndicatorPlaced) indicator.style.transition = "none";
+  indicator.style.width = active.offsetWidth + "px";
+  indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+  if (!tabIndicatorPlaced) {
+    void indicator.offsetWidth; // Browser übernimmt die Position sofort
+    indicator.style.transition = ""; // ab jetzt wieder mit Animation
+    tabIndicatorPlaced = true;
+  }
+}
+
+// Ändert sich die Fensterbreite (z.B. iPhone gedreht), Markierung anpassen
+window.addEventListener("resize", moveTabIndicator);
 
 // Setzt den Titel (groß im Inhalt und klein in der Leiste) und optional
 // einen Zurück-Link. backLabel ist der Name des Ziels, z.B. "Pläne".
