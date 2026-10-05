@@ -98,6 +98,10 @@ let exercises = [];
 let activePlanId = null;
 let workouts = [];
 let currentWorkout = null;
+// Einstellungen. weeklyGoals: Wochenziel mit Startwoche, damit eine
+// Änderung nur ab dann gilt und alte Wochen ihre Farbe behalten.
+// z.B. [{ from: "0000-01-01", goal: 3 }, { from: "2026-10-05", goal: 4 }]
+let settings = { weeklyGoals: [] };
 
 // ===== Dauerhaft speichern und laden =====
 
@@ -107,7 +111,7 @@ const STORAGE_KEY = "gym-tracker-data";
 // Version des Datenformats. Ändern wir später den Aufbau der Daten (z.B.
 // für die Cloud), erhöhen wir diese Zahl. Die App erkennt dann alte Daten
 // und kann sie umwandeln, statt sie falsch zu lesen.
-const DATA_VERSION = 1;
+const DATA_VERSION = 2; // 2: Einstellungen (Wochenziel) dazugekommen
 
 // Alle Daten als Text ablegen. Wird nach jeder Änderung aufgerufen.
 function save() {
@@ -119,6 +123,7 @@ function save() {
     activePlanId: activePlanId,
     workouts: workouts,
     currentWorkout: currentWorkout,
+    settings: settings,
   };
   // try/catch fängt Fehler ab, damit die App nicht abstürzt, z.B. wenn
   // der Speicher voll ist oder der Browser das Speichern verbietet
@@ -152,6 +157,7 @@ function load() {
     activePlanId = data.activePlanId;
     workouts = data.workouts;
     currentWorkout = data.currentWorkout;
+    settings = data.settings;
   } catch (error) {
     // Daten sind beschädigt oder unlesbar. Nicht löschen, sondern unter
     // einem zweiten Namen beiseitelegen, damit man sie notfalls retten kann.
@@ -165,15 +171,19 @@ function load() {
   }
 }
 
-// Bringt Daten aus älteren Versionen auf den aktuellen Stand.
-// Im Moment gibt es nur Version 1, später kommen hier Umwandlungen hinzu,
-// z.B.: if (data.version === 1) { ...umbauen...; data.version = 2; }
+// Bringt Daten aus älteren Versionen Schritt für Schritt auf den
+// aktuellen Stand. Jede Stufe macht aus Version n die Version n + 1.
 function migrate(data) {
   if (!data || typeof data !== "object" || !Array.isArray(data.plans)) {
     throw new Error("Unbekanntes Datenformat");
   }
   if (data.version > DATA_VERSION) {
     throw new Error("Daten stammen aus einer neueren App-Version");
+  }
+  // Version 1 -> 2: Es gab noch keine Einstellungen
+  if (data.version === 1) {
+    data.settings = { weeklyGoals: [] };
+    data.version = 2;
   }
   return data;
 }
@@ -294,6 +304,33 @@ const Store = {
     if (reordered.length === plan.units.length) {
       plan.units = reordered;
     }
+    save();
+  },
+
+  // ----- Wochenziel -----
+
+  // Das Wochenziel (Trainingstage pro Woche), das in einer bestimmten
+  // Woche galt. weekKey ist der Montag dieser Woche, z.B. "2026-10-05".
+  // Gibt null zurück, solange noch kein Ziel festgelegt wurde.
+  getWeeklyGoal(weekKey = weekKeyOf(new Date())) {
+    const goals = settings.weeklyGoals;
+    if (goals.length === 0) return null;
+    // Das letzte Ziel, das in dieser Woche schon galt
+    const valid = goals.filter((g) => g.from <= weekKey);
+    return valid.length > 0 ? valid[valid.length - 1].goal : goals[0].goal;
+  },
+
+  // Neues Wochenziel, gültig ab der laufenden Woche.
+  // Das allererste Ziel gilt rückwirkend für alle früheren Wochen
+  // ("0000-01-01" ist kleiner als jedes echte Datum). So bleibt es erhalten,
+  // auch wenn man das Ziel noch in derselben Woche ändert.
+  setWeeklyGoal(goal) {
+    const from = settings.weeklyGoals.length === 0 ? "0000-01-01" : weekKeyOf(new Date());
+    // Ein Eintrag pro Woche: Wird mehrmals in derselben Woche geändert,
+    // zählt nur der letzte Wert
+    settings.weeklyGoals = settings.weeklyGoals.filter((g) => g.from !== from);
+    settings.weeklyGoals.push({ from: from, goal: goal });
+    settings.weeklyGoals.sort((a, b) => a.from.localeCompare(b.from));
     save();
   },
 
@@ -554,6 +591,22 @@ function workoutEntry(exerciseId) {
     currentWorkout.exercises[exerciseId] = { sets: sets, done: false, skipped: false };
   }
   return currentWorkout.exercises[exerciseId];
+}
+
+// Kennung einer Woche: das Datum ihres Montags als Text, z.B. "2026-10-05".
+// Text lässt sich leicht vergleichen und sortieren ("2026-09-28" < "2026-10-05").
+function weekKeyOf(date) {
+  const monday = new Date(date);
+  monday.setHours(0, 0, 0, 0);
+  // getDay(): Sonntag = 0, Montag = 1 ... Wir rechnen auf "Montag = 0" um.
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return dayKeyOf(monday);
+}
+
+// Ein Tag als Text, z.B. "2026-10-05" (in Ortszeit, nicht in UTC)
+function dayKeyOf(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // Merkt sich den Zeitpunkt der letzten Eingabe im laufenden Training

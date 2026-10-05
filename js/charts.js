@@ -106,47 +106,229 @@ function renderTodayWidget(workouts) {
   `;
 }
 
-// Trainings in diesem Monat, mit kleinem Kalender
-function renderMonthWidget(workouts) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const inMonth = (w, y, m) => {
-    const d = new Date(w.date);
-    return d.getFullYear() === y && d.getMonth() === m;
-  };
-  const thisMonth = workouts.filter((w) => inMonth(w, year, month));
-  // Vormonat: new Date(year, month - 1) rechnet Januar -> Dezember selbst richtig
-  const prev = new Date(year, month - 1, 1);
-  const lastMonthCount = workouts.filter((w) => inMonth(w, prev.getFullYear(), prev.getMonth())).length;
+// ===== Wochen-Streak =====
+// Wie bei Duolingo: Wer sein Wochenziel (Trainingstage pro Woche) schafft,
+// verlängert seine Streak. Eine verpasste Woche beendet sie.
+// - "gold": Ziel erreicht
+// - "ice":  Woche vorbei, Ziel verpasst (eisblau)
+// - "open": laufende Woche, Ziel noch nicht erreicht (zählt noch nicht)
+// - "start": die Woche des allerersten Trainings, Ziel nicht erreicht.
+//   Wer mitten in der Woche anfängt, soll dafür nicht bestraft werden.
+// Wochen vor dem allerersten Training zählen gar nicht.
 
-  // Tage, an denen trainiert wurde (als Zahl 1–31)
-  const trainedDays = new Set(thisMonth.map((w) => new Date(w.date).getDate()));
+// Alle Trainingstage als Text ("2026-10-05"). Ein Tag zählt, wenn dort
+// mindestens eine Übung abgehakt wurde. Mehrere Trainings am selben Tag
+// zählen als ein Tag. Das laufende Training zählt schon mit.
+function trainingDayKeys() {
+  const days = new Set();
+  Store.getWorkouts().forEach((w) => {
+    if (w.exercises.some((e) => e.done && !e.skipped)) days.add(dayKeyOf(w.date));
+  });
+  const current = Store.getCurrentWorkout();
+  if (current && Object.values(current.exercises).some((e) => e.done && !e.skipped)) {
+    days.add(dayKeyOf(current.startedAt));
+  }
+  return days;
+}
+
+// Status jeder Woche vom ersten Training bis heute.
+// Ergebnis: Map von Wochen-Kennung -> { count, goal, status }
+// (Eine Map ist wie ein Nachschlagewerk: zu jedem Schlüssel ein Wert.)
+function weekStatuses(days = trainingDayKeys()) {
+  const weeks = new Map();
+  if (days.size === 0 || Store.getWeeklyGoal() === null) return weeks;
+
+  // Trainingstage pro Woche zählen
+  const counts = new Map();
+  days.forEach((day) => {
+    const key = weekKeyOf(new Date(day + "T12:00"));
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  // Von der Woche des ersten Trainings bis zur aktuellen Woche
+  const currentKey = weekKeyOf(new Date());
+  const firstDay = [...days].sort()[0];
+  const firstKey = weekKeyOf(new Date(firstDay + "T12:00"));
+  const monday = new Date(firstKey + "T12:00");
+  while (dayKeyOf(monday) <= currentKey) {
+    const key = dayKeyOf(monday);
+    const count = counts.get(key) || 0;
+    const goal = Store.getWeeklyGoal(key);
+    let status = "ice";
+    if (count >= goal) status = "gold";
+    else if (key === currentKey) status = "open";
+    else if (key === firstKey) status = "start";
+    weeks.set(key, { count, goal, status });
+    monday.setDate(monday.getDate() + 7);
+  }
+  return weeks;
+}
+
+// Aktuelle und längste Streak, Anzahl goldener Wochen
+function streakInfo(weeks = weekStatuses()) {
+  const list = [...weeks.values()];
+  // Aktuelle Streak: von hinten zählen. Die laufende Woche bricht nichts,
+  // solange sie noch "open" ist.
+  let current = 0;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].status === "gold") current++;
+    else if (list[i].status === "open") continue;
+    else break; // "ice" beendet die Streak, "start" ist ihr Anfang
+  }
+  // Längste Streak: längste Folge goldener Wochen
+  let longest = 0;
+  let run = 0;
+  list.forEach((w) => {
+    run = w.status === "gold" ? run + 1 : w.status === "ice" ? 0 : run;
+    longest = Math.max(longest, run);
+  });
+  const goldWeeks = list.filter((w) => w.status === "gold").length;
+  return { current, longest, goldWeeks };
+}
+
+// Kalenderwoche nach ISO (Montag als Wochenbeginn), z.B. 41
+function isoWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7; // Sonntag = 7
+  d.setUTCDate(d.getUTCDate() + 4 - day); // Donnerstag derselben Woche
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+}
+
+// Flamme als kleine SVG-Grafik. "lit" = brennt (orange-gold), sonst grau.
+function flameIcon(lit) {
+  return `
+    <svg class="flame ${lit ? "lit" : ""}" viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="flame-gradient" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#ff9600"/>
+          <stop offset="1" stop-color="#ffc800"/>
+        </linearGradient>
+      </defs>
+      <path d="M12 2.5c.6 3.2 4.8 5.3 4.8 10.6A4.9 4.9 0 0 1 12 18a4.9 4.9 0 0 1-4.8-4.9c0-2.4 1.3-3.6 2-5 .3 1.6 1.2 2.3 1.9 2.4-.4-3.2.3-5.8.9-8z"/>
+      <path class="flame-core" d="M12 11.5c.4 1.3 2.2 2.1 2.2 3.9A2.2 2.2 0 0 1 12 17.6a2.2 2.2 0 0 1-2.2-2.2c0-1.4 1.6-2.4 2.2-3.9z"/>
+    </svg>`;
+}
+
+// Widget "Wochen-Streak" (das erste auf der Startseite)
+function renderStreakWidget() {
+  const goal = Store.getWeeklyGoal();
+
+  // Noch kein Ziel: direkt hier fragen
+  if (goal === null) {
+    return `
+      <div class="widget-title">Wochen-Streak</div>
+      <p class="widget-subtitle">Wie oft möchtest du pro Woche trainieren?</p>
+      <div class="goal-picker">
+        ${[2, 3, 4, 5, 6]
+          .map((n) => `<button class="goal-option" data-action="set-goal" data-goal="${n}">${n}×</button>`)
+          .join("")}
+      </div>
+      <div class="widget-footnote">Schaffst du dein Ziel, wächst deine Streak jede Woche um eins.</div>
+    `;
+  }
+
+  const weeks = weekStatuses();
+  const info = streakInfo(weeks);
+  const thisWeek = weeks.get(weekKeyOf(new Date())) || { count: 0, goal, status: "open" };
+  const percent = Math.min(100, (thisWeek.count / thisWeek.goal) * 100);
+  const reached = thisWeek.count >= thisWeek.goal;
+
+  // Die letzten 6 Wochen als kleine Kacheln mit Kalenderwoche
+  const pills = [];
+  const monday = new Date(weekKeyOf(new Date()) + "T12:00");
+  monday.setDate(monday.getDate() - 35);
+  for (let i = 0; i < 6; i++) {
+    const week = weeks.get(dayKeyOf(monday));
+    const status = week ? week.status : "none";
+    const labels = { gold: "Ziel erreicht", ice: "verpasst", open: "läuft", start: "erste Woche", none: "kein Training" };
+    pills.push(
+      `<span class="week-pill ${status}" title="KW ${isoWeekNumber(monday)}: ${labels[status]}">${isoWeekNumber(monday)}</span>`
+    );
+    monday.setDate(monday.getDate() + 7);
+  }
+
+  return `
+    <div class="widget-title">Wochen-Streak</div>
+    <div class="streak-head">
+      ${flameIcon(info.current > 0 || reached)}
+      <span class="hero-number">${info.current}</span>
+      <span class="hero-unit">${info.current === 1 ? "Woche" : "Wochen"} in Folge</span>
+    </div>
+    <div class="streak-label">
+      <span>${reached ? "Wochenziel erreicht!" : "Diese Woche"}</span>
+      <span><strong>${thisWeek.count}</strong> von ${thisWeek.goal} Tagen</span>
+    </div>
+    <div class="streak-bar" role="progressbar" aria-valuenow="${thisWeek.count}" aria-valuemin="0" aria-valuemax="${thisWeek.goal}">
+      <span class="streak-fill ${reached ? "full" : ""}" style="width: ${percent}%"></span>
+    </div>
+    <div class="week-pills" aria-label="Letzte 6 Wochen">${pills.join("")}</div>
+  `;
+}
+
+// Ein Monatskalender: 7 Spalten (Mo–So). Jeder Tag bekommt die Farbe
+// seiner Woche: gold (Ziel erreicht) oder eisblau (verpasst). Trainingstage
+// sind kräftig gefärbt, die übrigen Tage der Woche nur zart.
+function renderCalendar(year, month, days, weeks, size = "small") {
+  const todayKey = dayKeyOf(new Date());
   const daysInMonth = new Date(year, month + 1, 0).getDate(); // Tag 0 des Folgemonats = letzter Tag
   // Leere Felder vor dem 1., damit die Tage unter dem richtigen Wochentag stehen
   const offset = (new Date(year, month, 1).getDay() + 6) % 7;
   let cells = "";
   for (let i = 0; i < offset; i++) cells += `<span class="cal-day empty"></span>`;
   for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day, 12);
+    const key = dayKeyOf(date);
+    const week = weeks.get(weekKeyOf(date));
     const classes = ["cal-day"];
-    if (trainedDays.has(day)) classes.push("trained");
-    if (day === now.getDate()) classes.push("today");
-    cells += `<span class="${classes.join(" ")}" title="${day}."></span>`;
+    if (week && (week.status === "gold" || week.status === "ice")) classes.push(week.status);
+    if (days.has(key)) classes.push("trained");
+    if (key === todayKey) classes.push("today");
+    if (key > todayKey) classes.push("future");
+    const label = size === "large" ? `<span class="cal-number">${day}</span>` : "";
+    cells += `<span class="${classes.join(" ")}" title="${day}.">${label}</span>`;
   }
+  return `<div class="calendar ${size}">${cells}</div>`;
+}
 
+// Kurze Auswertung eines Monats: Trainingstage und Wochen mit erreichtem Ziel.
+// Eine Woche zählt zu dem Monat, in dem ihr Montag liegt.
+function monthSummary(year, month, days, weeks) {
+  const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const trainingDays = [...days].filter((d) => d.startsWith(prefix)).length;
+  const monthWeeks = [...weeks.entries()].filter(([key]) => key.startsWith(prefix));
+  const gold = monthWeeks.filter(([, w]) => w.status === "gold").length;
+  // Entschiedene Wochen: gold oder verpasst (laufende und Startwoche nicht)
+  const decided = monthWeeks.filter(([, w]) => w.status === "gold" || w.status === "ice").length;
+  return { trainingDays, gold, decided };
+}
+
+// Trainingstage in diesem Monat, mit Kalender in Streak-Farben
+function renderMonthWidget() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const days = trainingDayKeys();
+  const weeks = weekStatuses(days);
+  const summary = monthSummary(year, month, days, weeks);
+  // Vormonat: new Date(year, month - 1) rechnet Januar -> Dezember selbst richtig
+  const prev = new Date(year, month - 1, 1);
+  const prevSummary = monthSummary(prev.getFullYear(), prev.getMonth(), days, weeks);
   const monthName = now.toLocaleDateString("de-DE", { month: "long" });
-  // Links die Zahl, rechts ein kleiner Kalender
+
+  // Links die Zahl, rechts der Kalender
   return `
     <div class="widget-title">Diesen Monat</div>
     <div class="month-layout">
       <div>
         <div class="hero-row">
-          <span class="hero-number">${thisMonth.length}</span>
+          <span class="hero-number">${summary.trainingDays}</span>
         </div>
-        <div class="widget-subtitle">${thisMonth.length === 1 ? "Training" : "Trainings"} im ${monthName}</div>
-        <div class="widget-footnote">Vormonat: ${lastMonthCount}</div>
+        <div class="widget-subtitle">${summary.trainingDays === 1 ? "Trainingstag" : "Trainingstage"} im ${monthName}</div>
+        ${summary.decided > 0 ? `<div class="widget-footnote">Ziel in ${summary.gold} von ${summary.decided} Wochen erreicht</div>` : ""}
+        <div class="widget-footnote">Vormonat: ${prevSummary.trainingDays}</div>
       </div>
-      <div class="calendar" aria-label="Trainingstage im ${monthName}">${cells}</div>
+      ${renderCalendar(year, month, days, weeks)}
     </div>
   `;
 }
@@ -229,7 +411,8 @@ function renderDurationWidget(workouts) {
 function renderWidgets() {
   const workouts = Store.getWorkouts();
   const widgets = [
-    renderMonthWidget(workouts),
+    renderStreakWidget(),
+    renderMonthWidget(),
     renderTodayWidget(workouts),
     renderVolumeWidget(workouts),
     renderDurationWidget(workouts),

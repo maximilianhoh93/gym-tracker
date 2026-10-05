@@ -14,6 +14,14 @@
   --tab-inactive: #8e8e93; /* Apples Systemgrau für inaktive Tabs */
   --bar-bg: rgba(249, 249, 249, 0.82); /* Leicht durchscheinend */
   --hover: rgba(120, 120, 128, 0.08); /* Hervorhebung beim Darüberfahren */
+  /* Streak-Farben im Duolingo-Stil. Gold etwas kräftiger als bei Duolingo
+     (#ffc800), weil das Original auf Weiß kaum zu sehen ist. */
+  --streak-orange: #ff9600;
+  --gold: #f0ab00;
+  --gold-soft: rgba(255, 200, 0, 0.28);
+  --ice: #1c9fe0;
+  --ice-soft: rgba(28, 176, 246, 0.2);
+  --trained: #8e8e93; /* Trainingstag in einer noch laufenden Woche */
   --tab-height: 56px;
 }
 
@@ -32,6 +40,11 @@
     --tab-inactive: #8e8e93;
     --bar-bg: rgba(28, 28, 30, 0.82);
     --hover: rgba(120, 120, 128, 0.18);
+    --gold: #ffc800;
+    --gold-soft: rgba(255, 200, 0, 0.22);
+    --ice: #1cb0f6;
+    --ice-soft: rgba(28, 176, 246, 0.22);
+    --trained: #aeaeb2;
   }
 }
 
@@ -1105,27 +1118,83 @@ button.button-secondary {
   gap: 12px;
 }
 
-/* Kleiner Monatskalender: 7 Spalten = Mo bis So, jedes Feld 14px */
+/* Monatskalender: 7 Spalten = Mo bis So */
 .calendar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(7, 14px);
   gap: 4px;
+}
+
+/* Klein im Widget: jedes Feld 14px */
+.calendar.small {
+  grid-template-columns: repeat(7, 14px);
   margin-top: 6px;
+}
+
+/* Groß in der Monatsübersicht: volle Breite, mit Tageszahlen */
+.calendar.large {
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
 }
 
 .cal-day {
   aspect-ratio: 1; /* Quadratisch */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 3px;
   background: var(--gray-button);
+}
+
+.calendar.large .cal-day {
+  border-radius: 8px;
+}
+
+.cal-number {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
 }
 
 .cal-day.empty {
   background: none;
 }
 
+.cal-day.future {
+  opacity: 0.45;
+}
+
+/* Trainingstag in einer laufenden Woche: neutral */
 .cal-day.trained {
-  background: var(--accent);
+  background: var(--trained);
+}
+
+/* Woche mit erreichtem Ziel: ganze Woche zart gold, Trainingstage kräftig */
+.cal-day.gold {
+  background: var(--gold-soft);
+}
+
+.cal-day.gold.trained {
+  background: var(--gold);
+}
+
+/* Woche verpasst: "Eis-Look", zart blau, Trainingstage kräftiger */
+.cal-day.ice {
+  background: var(--ice-soft);
+}
+
+.cal-day.ice.trained {
+  background: var(--ice);
+}
+
+/* Auf kräftigen Feldern die Zahl weiß, auf Gold dunkelbraun */
+.cal-day.trained .cal-number {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cal-day.gold.trained .cal-number {
+  color: #4a3200;
 }
 
 .cal-day.today {
@@ -1409,4 +1478,237 @@ button.button-secondary {
   .dot:hover::before {
     background: var(--text-muted);
   }
+}
+
+/* ===== Wochen-Streak ===== */
+.streak-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Flamme: grau, oder mit orange-goldenem Verlauf, wenn sie brennt */
+.flame {
+  width: 40px;
+  height: 40px;
+  fill: var(--gray-button);
+}
+
+.flame .flame-core {
+  fill: var(--surface);
+  opacity: 0.6;
+}
+
+.flame.lit {
+  fill: url(#flame-gradient);
+}
+
+.flame.lit .flame-core {
+  fill: #fff3c4;
+  opacity: 1;
+}
+
+.streak-label {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.streak-label strong {
+  color: var(--text);
+}
+
+/* Der Fortschrittsbalken der Woche */
+.streak-bar {
+  height: 14px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--gray-button);
+}
+
+.streak-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  /* Verlauf von Orange zu Gold wie bei Duolingo */
+  background: linear-gradient(90deg, var(--streak-orange), #ffc800);
+  /* Beim Erscheinen von 0 auf den Wert "volllaufen" */
+  animation: fill-up 0.8s cubic-bezier(0.3, 1, 0.4, 1);
+  transform-origin: left;
+}
+
+@keyframes fill-up {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Ziel erreicht: leichter Glanz über dem Balken */
+.streak-fill.full {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Die letzten Wochen als kleine Kacheln mit Kalenderwoche */
+.week-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.week-pill {
+  flex: 1;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--gray-button);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dunkelbraune Schrift auf Gold: Weiß wäre auf Gold kaum lesbar */
+.week-pill.gold {
+  background: var(--gold);
+  color: #4a3200;
+}
+
+.week-pill.ice {
+  background: var(--ice-soft);
+  color: var(--ice);
+}
+
+.week-pill.open {
+  box-shadow: inset 0 0 0 1.5px var(--gold);
+  color: var(--text);
+}
+
+/* Auswahl des Wochenziels beim ersten Mal */
+.goal-picker {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goal-option {
+  flex: 1;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: var(--gray-button);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.goal-option:active {
+  background: var(--gold);
+  color: #ffffff;
+}
+
+/* ===== Tab "Daten" ===== */
+.goal-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  background: var(--surface);
+  border-radius: 14px;
+}
+
+.goal-text {
+  flex: 1;
+}
+
+.goal-value {
+  min-width: 24px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.step-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.streak-stats {
+  padding: 14px 8px;
+  background: var(--surface);
+  border-radius: 14px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-swatch.gold {
+  background: var(--gold);
+}
+
+.legend-swatch.ice {
+  background: var(--ice);
+}
+
+.legend-swatch.trained {
+  background: var(--trained);
+}
+
+.month-card {
+  margin-bottom: 12px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: 18px;
+}
+
+.month-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.month-name {
+  font-weight: 700;
+}
+
+.month-stats {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
 }

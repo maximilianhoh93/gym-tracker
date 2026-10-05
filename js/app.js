@@ -70,6 +70,8 @@ function renderCurrentView() {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
     renderUebungen();
+  } else if (viewName === "daten") {
+    renderDaten();
   }
 }
 
@@ -913,6 +915,82 @@ function renderUebungen() {
   `;
 }
 
+// ===== Ansicht "Daten" =====
+// Wochenziel, Streak-Bestwerte und eine Übersicht aller Monate
+function renderDaten() {
+  const container = document.getElementById("view-daten");
+  const goal = Store.getWeeklyGoal();
+  const days = trainingDayKeys();
+  const weeks = weekStatuses(days);
+  const info = streakInfo(weeks);
+
+  // Wochenziel mit − und + einstellen (1 bis 7 Tage)
+  const goalCard = `
+    <h2 class="section-title">Wochenziel</h2>
+    <div class="goal-card">
+      <span class="goal-text">Trainingstage pro Woche</span>
+      <button class="step-button" data-action="goal-step" data-delta="-1"
+        ${goal !== null && goal <= 1 ? "disabled" : ""} aria-label="Ein Tag weniger">−</button>
+      <span class="goal-value">${goal === null ? "–" : goal}</span>
+      <button class="step-button" data-action="goal-step" data-delta="1"
+        ${goal !== null && goal >= 7 ? "disabled" : ""} aria-label="Ein Tag mehr">+</button>
+    </div>
+    <p class="hint">Eine Änderung gilt ab dieser Woche. Vergangene Wochen behalten ihre Farbe.</p>
+  `;
+
+  // Kennzahlen zur Streak
+  const stats = `
+    <h2 class="section-title">Streak</h2>
+    <div class="stat-row streak-stats">
+      <div class="stat"><span class="stat-value">${info.current}</span><span class="stat-label">Aktuell (Wochen)</span></div>
+      <div class="stat"><span class="stat-value">${info.longest}</span><span class="stat-label">Längste (Wochen)</span></div>
+      <div class="stat"><span class="stat-value">${info.goldWeeks}</span><span class="stat-label">Wochen mit Ziel</span></div>
+    </div>
+  `;
+
+  // Alle Monate vom ersten Training bis heute, neuester zuerst
+  let months = "";
+  if (days.size > 0) {
+    const first = new Date([...days].sort()[0] + "T12:00");
+    const cursor = new Date();
+    cursor.setDate(1);
+    while (cursor >= new Date(first.getFullYear(), first.getMonth(), 1)) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      const summary = monthSummary(year, month, days, weeks);
+      const name = cursor.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+      const goalText = weeks.size > 0 && summary.decided > 0 ? ` · Ziel in ${summary.gold} von ${summary.decided} Wochen` : "";
+      months += `
+        <section class="month-card">
+          <div class="month-head">
+            <span class="month-name">${name}</span>
+            <span class="month-stats">${summary.trainingDays} ${summary.trainingDays === 1 ? "Tag" : "Tage"}${goalText}</span>
+          </div>
+          <div class="weekday-row"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+          ${renderCalendar(year, month, days, weeks, "large")}
+        </section>`;
+      cursor.setMonth(cursor.getMonth() - 1);
+    }
+  }
+
+  // Legende: Was bedeuten die Farben?
+  const legend = `
+    <div class="legend">
+      <span><i class="legend-swatch gold"></i>Ziel erreicht</span>
+      <span><i class="legend-swatch ice"></i>Ziel verpasst</span>
+      <span><i class="legend-swatch trained"></i>Trainingstag</span>
+    </div>`;
+
+  container.innerHTML = `
+    ${goalCard}
+    ${stats}
+    <h2 class="section-title">Monate</h2>
+    ${days.size === 0 ? `<p class="placeholder">Noch keine Trainings. Nach deinem ersten Training erscheint hier dein Kalender.</p>` : legend + months}
+    <h2 class="section-title">Sicherung</h2>
+    <p class="placeholder">Export und Import (Sicherung in iCloud Drive) kommen im nächsten Schritt.</p>
+  `;
+}
+
 // ===== Reaktionen auf Eingaben =====
 // Der Inhalt wird bei jeder Änderung neu gezeichnet, Knöpfe und Formulare
 // sind danach also neue Elemente. Deshalb hängen wir die Behandler nicht an
@@ -962,6 +1040,21 @@ appMain.addEventListener("click", (event) => {
   // Timer-Knöpfe haben ihren eigenen Behandler (siehe oben)
   if (action.startsWith("timer-")) {
     handleTimerAction(button);
+    return;
+  }
+
+  // Wochenziel festlegen (Widget) bzw. mit − / + ändern (Tab "Daten")
+  if (action === "set-goal") {
+    Store.setWeeklyGoal(Number(button.dataset.goal));
+    renderCurrentView();
+    return;
+  }
+  if (action === "goal-step") {
+    const current = Store.getWeeklyGoal();
+    // Noch kein Ziel: Der erste Druck setzt 3, danach geht es in Schritten
+    const next = current === null ? 3 : current + Number(button.dataset.delta);
+    Store.setWeeklyGoal(Math.min(7, Math.max(1, next)));
+    renderCurrentView();
     return;
   }
 
