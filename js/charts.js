@@ -229,8 +229,8 @@ function renderDurationWidget(workouts) {
 function renderWidgets() {
   const workouts = Store.getWorkouts();
   const widgets = [
-    renderTodayWidget(workouts),
     renderMonthWidget(workouts),
+    renderTodayWidget(workouts),
     renderVolumeWidget(workouts),
     renderDurationWidget(workouts),
   ];
