@@ -2009,6 +2009,19 @@ function middleOf(element) {
   return rect.top + rect.height / 2;
 }
 
+// ===== Offline-Nutzung (Service Worker) =====
+// Den Service Worker anmelden, damit die App ihre Dateien speichert und
+// auch ohne Internet startet (siehe service-worker.js).
+// Nicht auf dem eigenen Mac während der Entwicklung (localhost): Dort würde
+// er alte Dateien zwischenspeichern und Änderungen erst verzögert zeigen.
+// Zum Ausprobieren trotzdem möglich mit der Adresse localhost:8000/?sw
+const isDevelopment = ["localhost", "127.0.0.1"].includes(location.hostname) && !location.search.includes("sw");
+if ("serviceWorker" in navigator && !isDevelopment) {
+  navigator.serviceWorker.register("service-worker.js").catch((error) => {
+    console.error("Service Worker konnte nicht starten:", error);
+  });
+}
+
 // ===== Start =====
 // Bei jedem Wechsel des Hashs (Tab angetippt, Zurück-Knopf) neu anzeigen
 window.addEventListener("hashchange", route);

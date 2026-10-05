@@ -18,10 +18,11 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 - Reines HTML, CSS und JavaScript, kein Framework, kein Build-Tool.
 - PWA: `manifest.webmanifest`, Service Worker für Offline-Nutzung, App-Icon. Auf dem iPhone soll sie über Safari zum Home-Bildschirm hinzugefügt werden können.
-- Hosting später kostenlos über GitHub Pages (die PWA braucht HTTPS). Erkläre mir den Ablauf, wenn wir so weit sind.
+- Hosting kostenlos über GitHub Pages (die PWA braucht HTTPS) aus einem öffentlichen Repository. Deshalb nichts Persönliches in Code und `CLAUDE.md`. Trainingsdaten liegen nie im Repository, nur auf dem jeweiligen Gerät.
+- PWA-Dateien: `manifest.webmanifest`, `service-worker.js` (Strategie „sofort aus dem Speicher, im Hintergrund aktualisieren“: startet offline, Updates sind beim nächsten Öffnen da), Symbole in `icons/`. Der Service Worker ist auf `localhost` abgeschaltet, damit Änderungen beim Entwickeln sofort sichtbar sind; zum Testen `http://localhost:8000/?sw`.
 - Daten lokal im Browser speichern (localStorage oder IndexedDB, wähle die passende Variante und begründe sie). Kein Login, kein Server.
 - Den Speicher-Code in eine eigene Datei (`storage.js`) auslagern. Der Rest der App greift nur darüber auf Daten zu, damit sich die Speicherung später durch eine Cloud-Lösung ersetzen lässt.
-- Struktur: `index.html`, `css/styles.css`, `js/app.js` (Anzeige und Bedienung), `js/storage.js` (Daten), `js/timer.js` (Pausentimer), `js/charts.js` (Diagramme, Widgets, Streak), `js/progress.js` (Steigerungsvorschlag, Rekorde); später `service-worker.js`.
+- Struktur: `index.html`, `css/styles.css`, `js/app.js` (Anzeige und Bedienung), `js/storage.js` (Daten), `js/timer.js` (Pausentimer), `js/charts.js` (Diagramme, Widgets, Streak), `js/progress.js` (Steigerungsvorschlag, Rekorde), `service-worker.js`, `manifest.webmanifest`, `icons/`. Neue Dateien, die die App zum Starten braucht, müssen auch in `APP_FILES` im Service Worker stehen.
 
 ## Funktionen
 
@@ -151,6 +152,8 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] 8. Verlauf pro Übung (Diagramm Gewicht/Volumen) und Startseite mit Widgets
 - [x] 9. Export und Import (Sicherung in iCloud Drive mit Erinnerung, siehe „Nächste Funktionen“ Punkt 1)
 - [x] Übungen bearbeiten, Notizen, Aufwärmsatz, Progressive Overload, Rekorde, Trainingsprotokoll, eigene Pläne (siehe „Nächste Funktionen“)
+- [x] 10a. PWA: Manifest, Service Worker (offline getestet), App-Symbol
+- [ ] 10b. Hosting über GitHub Pages
 - [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
@@ -159,7 +162,7 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 
 - Daten liegen lokal auf dem Gerät (localStorage). Eine reine Web-App kann nicht garantieren, dass sie das Löschen der Browserdaten übersteht.
 - Schutz deshalb: App als Home-Bildschirm-App installieren, dauerhaften Speicher anfordern und regelmäßige Sicherung als Datei in iCloud Drive (Erinnerung in der App, fester Dateiname `gym-tracker-backup.json`, wird beim Sichern ersetzt). Wiederherstellen über „Importieren“.
-- Die App soll mit meiner Freundin geteilt werden (Link zu GitHub Pages). Jede Person hat ihre eigenen, getrennten Daten auf ihrem iPhone.
+- Die App soll mit anderen geteilt werden können (Link zu GitHub Pages). Jede Person hat ihre eigenen, getrennten Daten auf ihrem iPhone.
 
 ## Nächste Funktionen (beschlossen; alle 8 umgesetzt)
 
@@ -178,7 +181,7 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 7. ✅ **Trainingsprotokoll** (erledigt, Seite `#einstellungen/tag/<datum>`): In den Einstellungen im Kalender einen Trainingstag antippen → Übersicht dieses Trainings (Dauer, Übungen, Sätze, bewegte kg, Rekorde) und die Übungen mit Sätzen. Dort Werte ändern, Übungen entfernen, Training löschen. Die Seite bleibt übersichtlich: im Normalzustand eine Zeile pro Übung, Eingabefelder erst im Modus „Bearbeiten“. Beendete Trainings speichern zusätzlich `planName`/`unitName`, damit das Protokoll auch nach Umbenennen oder Löschen lesbar bleibt. Aufgeklappte Monate bleiben beim Zurückkommen offen.
 8. ✅ **Eigene Pläne** (erledigt): In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen. Namen werden über das eingebaute Eingabefenster (`prompt`) abgefragt. Gelöschte Pläne/Trainingstage lassen gespeicherte Trainings unberührt.
 
-Bewusst NICHT umsetzen (vorerst): App online stellen (Schritt 10, später), Übungen archivieren statt löschen (ich lösche keine Übungen), Bildschirm im Training anlassen, Sätze einzeln abhaken bzw. Timer automatisch starten.
+Bewusst NICHT umsetzen (vorerst): Übungen archivieren statt löschen (ich lösche keine Übungen), Bildschirm im Training anlassen, Sätze einzeln abhaken bzw. Timer automatisch starten.
 
 ## Spätere Ideen (noch nicht bauen)
 

@@ -6,7 +6,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Sagt dem Browser, dass die Seite Hell- und Dunkelmodus unterstützt -->
   <meta name="color-scheme" content="light dark">
-  <title>Gym-Tracker</title>
+  <title>GymTracker</title>
+
+  <!-- PWA: Name, Farben und Symbol für "Zum Home-Bildschirm" -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <!-- Symbol auf dem iPhone-Home-Bildschirm (iOS liest es nicht aus dem Manifest) -->
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- Vom Home-Bildschirm aus ohne Safari-Leisten starten, wie eine echte App -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="GymTracker">
+  <!-- Farbe der Statusleiste: passend zum Hintergrund, hell und dunkel -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
