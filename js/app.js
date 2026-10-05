@@ -16,7 +16,7 @@ const VIEW_TITLES = {
   start: "Startseite",
   plaene: "Pläne",
   uebungen: "Übungen",
-  daten: "Daten",
+  einstellungen: "Einstellungen",
 };
 
 const DEFAULT_VIEW = "start";
@@ -70,8 +70,8 @@ function renderCurrentView() {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
     renderUebungen();
-  } else if (viewName === "daten") {
-    renderDaten();
+  } else if (viewName === "einstellungen") {
+    renderSettings();
   }
 }
 
@@ -915,40 +915,57 @@ function renderUebungen() {
   `;
 }
 
-// ===== Ansicht "Daten" =====
-// Wochenziel, Streak-Bestwerte und eine Übersicht aller Monate
-function renderDaten() {
-  const container = document.getElementById("view-daten");
+// ===== Ansicht "Einstellungen" =====
+// Wochenziel, Urlaubsmodus, Streak und eine aufklappbare Monatsübersicht
+function renderSettings() {
+  const container = document.getElementById("view-einstellungen");
   const goal = Store.getWeeklyGoal();
   const days = trainingDayKeys();
   const weeks = weekStatuses(days);
   const info = streakInfo(weeks);
+  const vacation = Store.isVacationActive();
 
   // Wochenziel mit − und + einstellen (1 bis 7 Tage)
   const goalCard = `
     <h2 class="section-title">Wochenziel</h2>
-    <div class="goal-card">
-      <span class="goal-text">Trainingstage pro Woche</span>
+    <div class="settings-row">
+      <span class="settings-label">Trainingstage pro Woche</span>
       <button class="step-button" data-action="goal-step" data-delta="-1"
         ${goal !== null && goal <= 1 ? "disabled" : ""} aria-label="Ein Tag weniger">−</button>
       <span class="goal-value">${goal === null ? "–" : goal}</span>
       <button class="step-button" data-action="goal-step" data-delta="1"
         ${goal !== null && goal >= 7 ? "disabled" : ""} aria-label="Ein Tag mehr">+</button>
     </div>
-    <p class="hint">Eine Änderung gilt ab dieser Woche. Vergangene Wochen behalten ihre Farbe.</p>
+    <p class="settings-hint">Eine Änderung gilt ab dieser Woche. Vergangene Wochen behalten ihre Farbe.</p>
   `;
 
-  // Kennzahlen zur Streak
+  // Urlaubsmodus als Schalter im iOS-Stil. role="switch" sagt Hilfsmitteln
+  // wie VoiceOver, dass es ein Ein/Aus-Schalter ist.
+  const since = Store.getVacationStart();
+  const vacationCard = `
+    <h2 class="section-title">Urlaub</h2>
+    <div class="settings-row">
+      <span class="settings-label">
+        Urlaubsmodus
+        ${vacation ? `<span class="settings-sub">an seit ${shortDate(since + "T12:00")}</span>` : ""}
+      </span>
+      <button class="switch ${vacation ? "on" : ""}" role="switch" aria-checked="${vacation}"
+        data-action="toggle-vacation" aria-label="Urlaubsmodus"></button>
+    </div>
+    <p class="settings-hint">Solange der Urlaubsmodus an ist, geht deine Streak nicht verloren, auch wenn du dein Wochenziel nicht schaffst.</p>
+  `;
+
   const stats = `
     <h2 class="section-title">Streak</h2>
     <div class="stat-row streak-stats">
       <div class="stat"><span class="stat-value">${info.current}</span><span class="stat-label">Aktuell (Wochen)</span></div>
       <div class="stat"><span class="stat-value">${info.longest}</span><span class="stat-label">Längste (Wochen)</span></div>
-      <div class="stat"><span class="stat-value">${info.goldWeeks}</span><span class="stat-label">Wochen mit Ziel</span></div>
     </div>
   `;
 
-  // Alle Monate vom ersten Training bis heute, neuester zuerst
+  // Alle Monate vom ersten Training bis heute, neuester zuerst.
+  // <details> ist ein eingebautes HTML-Element zum Auf- und Zuklappen:
+  // <summary> ist die immer sichtbare Zeile, der Rest erscheint beim Antippen.
   let months = "";
   if (days.size > 0) {
     const first = new Date([...days].sort()[0] + "T12:00");
@@ -959,16 +976,18 @@ function renderDaten() {
       const month = cursor.getMonth();
       const summary = monthSummary(year, month, days, weeks);
       const name = cursor.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
-      const goalText = weeks.size > 0 && summary.decided > 0 ? ` · Ziel in ${summary.gold} von ${summary.decided} Wochen` : "";
+      const goalText = summary.decided > 0 ? ` · Ziel ${summary.gold}/${summary.decided} Wochen` : "";
       months += `
-        <section class="month-card">
-          <div class="month-head">
+        <details class="month-item">
+          <summary>
             <span class="month-name">${name}</span>
             <span class="month-stats">${summary.trainingDays} ${summary.trainingDays === 1 ? "Tag" : "Tage"}${goalText}</span>
+          </summary>
+          <div class="month-body">
+            <div class="weekday-row"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+            ${renderCalendar(year, month, days, weeks, "large")}
           </div>
-          <div class="weekday-row"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
-          ${renderCalendar(year, month, days, weeks, "large")}
-        </section>`;
+        </details>`;
       cursor.setMonth(cursor.getMonth() - 1);
     }
   }
@@ -977,15 +996,19 @@ function renderDaten() {
   const legend = `
     <div class="legend">
       <span><i class="legend-swatch gold"></i>Ziel erreicht</span>
-      <span><i class="legend-swatch ice"></i>Ziel verpasst</span>
+      <span><i class="legend-swatch ice"></i>Verpasst</span>
+      <span><i class="legend-swatch vacation"></i>Urlaub</span>
       <span><i class="legend-swatch trained"></i>Trainingstag</span>
     </div>`;
 
   container.innerHTML = `
     ${goalCard}
+    ${vacationCard}
     ${stats}
-    <h2 class="section-title">Monate</h2>
-    ${days.size === 0 ? `<p class="placeholder">Noch keine Trainings. Nach deinem ersten Training erscheint hier dein Kalender.</p>` : legend + months}
+    <h2 class="section-title">Monatsübersicht</h2>
+    ${days.size === 0
+      ? `<p class="placeholder">Noch keine Trainings. Nach deinem ersten Training erscheint hier dein Kalender.</p>`
+      : `${legend}<div class="month-list">${months}</div>`}
     <h2 class="section-title">Sicherung</h2>
     <p class="placeholder">Export und Import (Sicherung in iCloud Drive) kommen im nächsten Schritt.</p>
   `;
@@ -1043,7 +1066,14 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
-  // Wochenziel festlegen (Widget) bzw. mit − / + ändern (Tab "Daten")
+  // Urlaubsmodus ein- bzw. ausschalten
+  if (action === "toggle-vacation") {
+    Store.setVacationActive(!Store.isVacationActive());
+    renderCurrentView();
+    return;
+  }
+
+  // Wochenziel festlegen (Widget) bzw. mit − / + ändern (Einstellungen)
   if (action === "set-goal") {
     Store.setWeeklyGoal(Number(button.dataset.goal));
     renderCurrentView();

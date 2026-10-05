@@ -34,9 +34,9 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Ein Plan wird als **aktiver Plan** gewählt (man trainiert meist immer mit demselben). Die Reihenfolge seiner Einheiten ist per Drag and Drop änderbar.
 
 ### Startseite
-- Tabs unten: Start, Pläne, Übungen, Daten. Einen eigenen Tab „Verlauf“ gibt es nicht; der Verlauf steckt in der jeweiligen Übung.
+- Tabs unten: Start, Pläne, Übungen, Einstellungen. Einen eigenen Tab „Verlauf“ gibt es nicht; der Verlauf steckt in der jeweiligen Übung.
 - Oben wischbare Widgets (Karussell mit Punkten), nicht überladen:
-  - Wochen-Streak (an erster Stelle): Flamme mit Anzahl Wochen in Folge, Balken für den Fortschritt dieser Woche (Verlauf Orange → Gold), die letzten 6 Wochen als Kacheln (gold/eisblau)
+  - Wochen-Streak (an erster Stelle): Flamme mit Anzahl Wochen in Folge, Balken für den Fortschritt dieser Woche (Verlauf Orange → Gold), darunter die Tage Mo–So dieser Woche; Trainingstage mit orange-goldenem Haken
   - Diesen Monat: Trainingstage, Kalender in Streak-Farben, Vergleich zum Vormonat
   - Heute bewegt: Summe aus Gewicht × Wiederholungen aller Sätze von heute abgehakten Übungen, zählt schon während des Trainings; Vergleich zum letzten Training
   - Volumen diese Woche: Sätze pro Muskelgruppe (Montag bis heute). Sätze statt kg, weil kg zwischen Muskelgruppen nicht vergleichbar sind
@@ -77,12 +77,13 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Wochen-Streak (wie bei Duolingo)
 - Wochenziel = Trainingstage pro Woche (1–7). Beim ersten Mal fragt das Streak-Widget danach, ändern im Tab „Daten“.
-- Gezählt werden Trainingstage (Tage mit mindestens einer abgehakten Übung), nicht Trainings. Das laufende Training zählt schon mit.
+- Gezählt werden Trainingstage, nicht Trainings: ein Tag, an dem ein Training mit mindestens einer abgehakten Übung BEENDET wurde. Erst „Training beenden“ (oder das automatische Speichern) zählt, nicht schon das Abhaken.
 - Woche erreicht → gold, Streak +1. Woche vorbei und nicht erreicht → „Eis-Look“ (eisblau), Streak endet.
 - Die laufende Woche bricht die Streak nie. Die Woche des allerersten Trainings wird neutral gewertet (wer mitten in der Woche anfängt, wird nicht bestraft).
 - Ziel-Änderungen gelten ab der laufenden Woche; das allererste Ziel gilt rückwirkend. Alte Wochen behalten so ihre Farbe.
+- Urlaubsmodus (Schalter in den Einstellungen): Wochen mit Urlaub, in denen das Ziel nicht erreicht wurde, brechen die Streak nicht (verlängern sie aber auch nicht). Im Kalender lila. Urlaubszeiten werden mit Beginn und Ende gespeichert; am selben Tag an- und ausgeschaltet zählt nicht.
 - Kalender: Wochen mit erreichtem Ziel zart gold, Trainingstage darin kräftig gold; verpasste Wochen eisblau. Gold im hellen Modus etwas kräftiger (#f0ab00) als bei Duolingo, weil #ffc800 auf Weiß kaum sichtbar ist. Orange nur im Fortschrittsbalken (Orange und Gold sind als Kalenderfarben zu ähnlich).
-- Tab „Daten“: Wochenziel einstellen, Streak-Kennzahlen (aktuell, längste, Wochen mit Ziel) und alle Monate als Kalender mit Legende.
+- Tab „Einstellungen“: Wochenziel, Urlaubsmodus, Streak (aktuell, längste), Monatsübersicht mit Legende. Die Monate sind zugeklappt und lassen sich einzeln aufklappen, damit die Seite nicht zu lang wird.
 
 ### Verlauf
 - Auf der Übungsseite (im Training) unter Sätzen und Timer ein Bereich „Verlauf“.
@@ -129,7 +130,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] Zusatz: aktiver Plan, Einheiten auf der Trainingsseite mit „Zuletzt“ und „Heute dran“, Einheiten per Drag and Drop sortierbar
 - [x] 6. Pausentimer (vorgezogen; `js/timer.js`)
 - [x] 4. Training starten, Übungen abhaken, Sätze mit Gewicht und Wiederholungen erfassen, Training beenden
-- [x] Wochen-Streak mit Wochenziel, Monatsübersicht im Tab „Daten“ (Datenformat Version 2)
+- [x] Wochen-Streak mit Wochenziel und Urlaubsmodus, Tab „Einstellungen“ mit aufklappbarer Monatsübersicht (Datenformat Version 3)
 - [x] 8. Verlauf pro Übung (Diagramm Gewicht/Volumen) und Startseite mit Widgets
 - [x] 7. Speichern der Daten (localStorage, Schlüssel `gym-tracker-data`, mit Versionsnummer `DATA_VERSION`; dauerhafter Speicher wird angefordert)
 

@@ -114,21 +114,29 @@ function renderTodayWidget(workouts) {
 // - "open": laufende Woche, Ziel noch nicht erreicht (zählt noch nicht)
 // - "start": die Woche des allerersten Trainings, Ziel nicht erreicht.
 //   Wer mitten in der Woche anfängt, soll dafür nicht bestraft werden.
+// - "vacation": Urlaub in dieser Woche, Ziel nicht erreicht. Die Streak
+//   bleibt erhalten, wächst aber auch nicht.
 // Wochen vor dem allerersten Training zählen gar nicht.
 
-// Alle Trainingstage als Text ("2026-10-05"). Ein Tag zählt, wenn dort
-// mindestens eine Übung abgehakt wurde. Mehrere Trainings am selben Tag
-// zählen als ein Tag. Das laufende Training zählt schon mit.
+// Alle Trainingstage als Text ("2026-10-05"). Ein Tag zählt, wenn dort ein
+// Training BEENDET wurde, in dem mindestens eine Übung abgehakt war.
+// Mehrere Trainings am selben Tag zählen als ein Tag. Das laufende
+// Training zählt noch nicht (erst nach "Training beenden").
 function trainingDayKeys() {
   const days = new Set();
   Store.getWorkouts().forEach((w) => {
     if (w.exercises.some((e) => e.done && !e.skipped)) days.add(dayKeyOf(w.date));
   });
-  const current = Store.getCurrentWorkout();
-  if (current && Object.values(current.exercises).some((e) => e.done && !e.skipped)) {
-    days.add(dayKeyOf(current.startedAt));
-  }
   return days;
+}
+
+// Gab es in der Woche (Montag = weekKey) mindestens einen Urlaubstag?
+function weekHasVacation(weekKey, vacations) {
+  const sunday = new Date(weekKey + "T12:00");
+  sunday.setDate(sunday.getDate() + 6);
+  const sundayKey = dayKeyOf(sunday);
+  // Überschneidung: Urlaub beginnt spätestens Sonntag und endet frühestens Montag
+  return vacations.some((v) => v.from <= sundayKey && (v.to === null || v.to >= weekKey));
 }
 
 // Status jeder Woche vom ersten Training bis heute.
@@ -147,6 +155,7 @@ function weekStatuses(days = trainingDayKeys()) {
 
   // Von der Woche des ersten Trainings bis zur aktuellen Woche
   const currentKey = weekKeyOf(new Date());
+  const vacations = Store.getVacations();
   const firstDay = [...days].sort()[0];
   const firstKey = weekKeyOf(new Date(firstDay + "T12:00"));
   const monday = new Date(firstKey + "T12:00");
@@ -156,6 +165,7 @@ function weekStatuses(days = trainingDayKeys()) {
     const goal = Store.getWeeklyGoal(key);
     let status = "ice";
     if (count >= goal) status = "gold";
+    else if (weekHasVacation(key, vacations)) status = "vacation";
     else if (key === currentKey) status = "open";
     else if (key === firstKey) status = "start";
     weeks.set(key, { count, goal, status });
@@ -172,27 +182,18 @@ function streakInfo(weeks = weekStatuses()) {
   let current = 0;
   for (let i = list.length - 1; i >= 0; i--) {
     if (list[i].status === "gold") current++;
-    else if (list[i].status === "open") continue;
+    else if (list[i].status === "open" || list[i].status === "vacation") continue;
     else break; // "ice" beendet die Streak, "start" ist ihr Anfang
   }
   // Längste Streak: längste Folge goldener Wochen
   let longest = 0;
   let run = 0;
   list.forEach((w) => {
+    // Urlaub und laufende Woche unterbrechen die Folge nicht
     run = w.status === "gold" ? run + 1 : w.status === "ice" ? 0 : run;
     longest = Math.max(longest, run);
   });
-  const goldWeeks = list.filter((w) => w.status === "gold").length;
-  return { current, longest, goldWeeks };
-}
-
-// Kalenderwoche nach ISO (Montag als Wochenbeginn), z.B. 41
-function isoWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = d.getUTCDay() || 7; // Sonntag = 7
-  d.setUTCDate(d.getUTCDate() + 4 - day); // Donnerstag derselben Woche
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return { current, longest };
 }
 
 // Flamme als kleine SVG-Grafik. "lit" = brennt (orange-gold), sonst grau.
@@ -234,19 +235,31 @@ function renderStreakWidget() {
   const percent = Math.min(100, (thisWeek.count / thisWeek.goal) * 100);
   const reached = thisWeek.count >= thisWeek.goal;
 
-  // Die letzten 6 Wochen als kleine Kacheln mit Kalenderwoche
-  const pills = [];
+  // Die Tage dieser Woche (Mo–So). Trainingstage bekommen einen Haken.
+  const days = trainingDayKeys();
+  const todayKey = dayKeyOf(new Date());
   const monday = new Date(weekKeyOf(new Date()) + "T12:00");
-  monday.setDate(monday.getDate() - 35);
-  for (let i = 0; i < 6; i++) {
-    const week = weeks.get(dayKeyOf(monday));
-    const status = week ? week.status : "none";
-    const labels = { gold: "Ziel erreicht", ice: "verpasst", open: "läuft", start: "erste Woche", none: "kein Training" };
-    pills.push(
-      `<span class="week-pill ${status}" title="KW ${isoWeekNumber(monday)}: ${labels[status]}">${isoWeekNumber(monday)}</span>`
-    );
-    monday.setDate(monday.getDate() + 7);
-  }
+  const dayNames = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+  const dayCells = dayNames
+    .map((name, i) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const key = dayKeyOf(date);
+      const classes = ["streak-day"];
+      if (days.has(key)) classes.push("done");
+      if (key === todayKey) classes.push("today");
+      if (key > todayKey) classes.push("future");
+      return `
+        <span class="${classes.join(" ")}">
+          <span class="streak-day-circle" aria-hidden="true">${days.has(key) ? "✓" : ""}</span>
+          <span class="streak-day-name">${name}</span>
+        </span>`;
+    })
+    .join("");
+
+  const vacationNote = Store.isVacationActive()
+    ? `<div class="vacation-note">🏖 Urlaubsmodus an: Deine Streak ist geschützt.</div>`
+    : "";
 
   return `
     <div class="widget-title">Wochen-Streak</div>
@@ -262,7 +275,8 @@ function renderStreakWidget() {
     <div class="streak-bar" role="progressbar" aria-valuenow="${thisWeek.count}" aria-valuemin="0" aria-valuemax="${thisWeek.goal}">
       <span class="streak-fill ${reached ? "full" : ""}" style="width: ${percent}%"></span>
     </div>
-    <div class="week-pills" aria-label="Letzte 6 Wochen">${pills.join("")}</div>
+    <div class="streak-days" aria-label="Trainingstage dieser Woche">${dayCells}</div>
+    ${vacationNote}
   `;
 }
 
@@ -281,7 +295,7 @@ function renderCalendar(year, month, days, weeks, size = "small") {
     const key = dayKeyOf(date);
     const week = weeks.get(weekKeyOf(date));
     const classes = ["cal-day"];
-    if (week && (week.status === "gold" || week.status === "ice")) classes.push(week.status);
+    if (week && ["gold", "ice", "vacation"].includes(week.status)) classes.push(week.status);
     if (days.has(key)) classes.push("trained");
     if (key === todayKey) classes.push("today");
     if (key > todayKey) classes.push("future");

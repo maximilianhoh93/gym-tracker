@@ -101,7 +101,9 @@ let currentWorkout = null;
 // Einstellungen. weeklyGoals: Wochenziel mit Startwoche, damit eine
 // Änderung nur ab dann gilt und alte Wochen ihre Farbe behalten.
 // z.B. [{ from: "0000-01-01", goal: 3 }, { from: "2026-10-05", goal: 4 }]
-let settings = { weeklyGoals: [] };
+// vacations: Urlaubszeiten. "to" ist null, solange der Urlaub noch läuft.
+// z.B. [{ from: "2026-08-03", to: "2026-08-16" }, { from: "2026-10-05", to: null }]
+let settings = { weeklyGoals: [], vacations: [] };
 
 // ===== Dauerhaft speichern und laden =====
 
@@ -111,7 +113,7 @@ const STORAGE_KEY = "gym-tracker-data";
 // Version des Datenformats. Ändern wir später den Aufbau der Daten (z.B.
 // für die Cloud), erhöhen wir diese Zahl. Die App erkennt dann alte Daten
 // und kann sie umwandeln, statt sie falsch zu lesen.
-const DATA_VERSION = 2; // 2: Einstellungen (Wochenziel) dazugekommen
+const DATA_VERSION = 3; // 2: Wochenziel, 3: Urlaubsmodus
 
 // Alle Daten als Text ablegen. Wird nach jeder Änderung aufgerufen.
 function save() {
@@ -184,6 +186,11 @@ function migrate(data) {
   if (data.version === 1) {
     data.settings = { weeklyGoals: [] };
     data.version = 2;
+  }
+  // Version 2 -> 3: Urlaubszeiten dazugekommen
+  if (data.version === 2) {
+    data.settings.vacations = [];
+    data.version = 3;
   }
   return data;
 }
@@ -331,6 +338,41 @@ const Store = {
     settings.weeklyGoals = settings.weeklyGoals.filter((g) => g.from !== from);
     settings.weeklyGoals.push({ from: from, goal: goal });
     settings.weeklyGoals.sort((a, b) => a.from.localeCompare(b.from));
+    save();
+  },
+
+  // ----- Urlaubsmodus -----
+
+  // Läuft gerade ein Urlaub?
+  isVacationActive() {
+    return settings.vacations.some((v) => v.to === null);
+  },
+
+  // Seit wann der aktuelle Urlaub läuft (Text wie "2026-10-05") oder null
+  getVacationStart() {
+    const running = settings.vacations.find((v) => v.to === null);
+    return running ? running.from : null;
+  },
+
+  // Alle Urlaubszeiten (für die Streak-Berechnung)
+  getVacations() {
+    return structuredClone(settings.vacations);
+  },
+
+  // Urlaubsmodus ein- oder ausschalten. Beim Einschalten beginnt ein neuer
+  // Urlaub heute, beim Ausschalten endet der laufende heute.
+  setVacationActive(active) {
+    const today = dayKeyOf(new Date());
+    if (active && !Store.isVacationActive()) {
+      settings.vacations.push({ from: today, to: null });
+    } else if (!active) {
+      settings.vacations.forEach((v) => {
+        if (v.to === null) v.to = today;
+      });
+      // Am selben Tag an- und wieder ausgeschaltet? Dann war es wohl ein
+      // Versehen: diesen "Urlaub" ganz entfernen
+      settings.vacations = settings.vacations.filter((v) => !(v.from === today && v.to === today));
+    }
     save();
   },
 
