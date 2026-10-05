@@ -78,7 +78,10 @@ function renderCurrentView() {
 // Setzt den Titel (groß im Inhalt und klein in der Leiste) und optional
 // einen Zurück-Link. backLabel ist der Name des Ziels, z.B. "Pläne".
 function setHeader(title, backHref, backLabel = "Zurück") {
-  document.getElementById("view-title").textContent = title;
+  const largeTitle = document.getElementById("view-title");
+  largeTitle.textContent = title;
+  // Lange Titel (z.B. lange Übungsnamen) etwas kleiner darstellen
+  largeTitle.classList.toggle("long", title.length > 20);
   document.getElementById("nav-title").textContent = title;
   const backLink = document.getElementById("back-link");
   backLink.hidden = !backHref;
@@ -95,6 +98,15 @@ window.addEventListener("scroll", () => {
 });
 
 // ===== Hilfsfunktionen =====
+
+// Symbole für das Timer-Widget als kleine SVG-Grafiken. Schriftzeichen wie
+// "❚❚" sehen je nach Gerät unterschiedlich (oder als Kästchen) aus.
+const ICONS = {
+  pause: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`,
+  play: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.4-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5z"/></svg>`,
+  restart: `<svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v4.5H9"/></svg>`,
+  close: `<svg viewBox="0 0 24 24" aria-hidden="true" class="stroke"><path d="m7 7 10 10M17 7 7 17"/></svg>`,
+};
 
 // Graues "ⓧ" zum Entfernen, angelehnt an Apples Symbol "xmark.circle.fill"
 const XMARK_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8.5 8.5 7 7m0-7-7 7"/></svg>`;
@@ -173,7 +185,7 @@ function renderStart(unitId, exerciseId) {
     container.innerHTML = `
       ${renderWidgets()}
       <h2 class="section-title">Training starten</h2>
-      <p class="intro">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
+      <p class="placeholder">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
         aus und tippe auf „Als aktiven Plan wählen“.</p>
       <a class="button-secondary" href="#plaene">Plan auswählen</a>
     `;
@@ -207,12 +219,11 @@ function renderStart(unitId, exerciseId) {
         <li>
           <a class="exercise-card unit-card" href="#start/${unit.id}">
             <span class="exercise-info">
-              <span class="exercise-name">${escapeHtml(unit.name)}</span>
+              <span class="exercise-name">${escapeHtml(unit.name)} ${badge}</span>
               <span class="exercise-meta">
                 ${exerciseCountText(unit.exerciseIds.length)} · ${lastDoneText(Store.getLastWorkoutDate(unit.id))}
               </span>
             </span>
-            ${badge}
             <span class="chevron" aria-hidden="true">›</span>
           </a>
         </li>
@@ -328,15 +339,32 @@ function setsSummary(exercise) {
   const group = escapeHtml(muscleGroupName(exercise.muscleGroupId));
   const sets = Store.getSets(exercise.id);
   if (sets.some((set) => set.reps !== null)) {
-    return `${group} · ${formatSets(sets)}`;
+    return `${group} · ${formatSetsShort(sets)}`;
   }
   const last = Store.getLastPerformance(exercise.id);
-  if (last) return `Zuletzt: ${formatSets(last.sets)}`;
+  if (last) return `Zuletzt: ${formatSetsShort(last.sets)}`;
   return `${group} · ${sets.length} Sätze`;
 }
 
 // Sätze kurz als Text: "62,5 kg × 10 · 8". Ändert sich das Gewicht
 // innerhalb der Übung, steht es bei jedem Satz: "60 kg × 10 · 55 kg × 8"
+// Kurzfassung für Listen und "Letztes Mal": bleibt einzeilig.
+// Gleiches Gewicht und bis zu 4 Sätze: "62,5 kg × 10 · 8"
+// sonst: "6 Sätze · 95–102,5 kg" bzw. "6 Sätze · 54 Wdh." ohne Gewicht
+function formatSetsShort(sets) {
+  const weights = sets.map((set) => set.weight).filter((w) => w !== null);
+  const sameWeight = sets.every((set) => set.weight === sets[0].weight);
+  if (sameWeight && sets.length <= 4) return formatSets(sets);
+  const count = `${sets.length} ${sets.length === 1 ? "Satz" : "Sätze"}`;
+  if (weights.length === 0) {
+    const total = sets.reduce((sum, set) => sum + (set.reps || 0), 0);
+    return `${count} · ${total} Wdh.`;
+  }
+  const min = Math.min(...weights);
+  const max = Math.max(...weights);
+  return `${count} · ${min === max ? formatNumber(max) : formatNumber(min) + "–" + formatNumber(max)} kg`;
+}
+
 function formatSets(sets) {
   const reps = (set) => (set.reps !== null ? set.reps : "–");
   const sameWeight = sets.every((set) => set.weight === sets[0].weight);
@@ -418,10 +446,14 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     return lastSet.reps !== null ? lastSet.reps : "0";
   };
 
+  // Hatte die Übung letztes Mal kein Gewicht (z.B. Dips), zeigt das leere
+  // Gewichtsfeld "–" statt "0", damit niemand "0 kg" eintragen will
+  const weightHint = last && last.sets.every((set) => set.weight === null) ? "–" : "0";
+
   // Datum kurz auf Deutsch, z.B. "05.10."
   const lastLine = last
     ? `<p class="last-time">Letztes Mal (${new Date(last.date).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })}):
-         <strong>${formatSets(last.sets)}</strong></p>`
+         <strong>${formatSetsShort(last.sets)}</strong></p>`
     : "";
 
   // Eine Zeile pro Satz. Die Eingabefelder merken sich in data-index und
@@ -433,7 +465,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       (set, i) => `
         <div class="set-row">
           <span class="set-number">${i + 1}</span>
-          <input class="set-input" type="text" inputmode="decimal" placeholder="0"
+          <input class="set-input" type="text" inputmode="decimal" placeholder="${weightHint}"
             value="${formatNumber(set.weight)}" data-index="${i}" data-field="weight"
             aria-label="Gewicht Satz ${i + 1} in kg">
           <input class="set-input" type="text" inputmode="numeric" placeholder="${lastReps(i)}"
@@ -585,9 +617,9 @@ function renderIsland() {
 
   // Rechter Knopf im aufgeklappten Zustand, je nach Zustand
   const mainButton = {
-    running: `<button class="island-button orange" data-island="pause" aria-label="Anhalten">❚❚</button>`,
-    paused: `<button class="island-button orange" data-island="resume" aria-label="Fortsetzen">▶</button>`,
-    done: `<button class="island-button green" data-island="restart" aria-label="Nochmal">↻</button>`,
+    running: `<button class="island-button orange" data-island="pause" aria-label="Anhalten">${ICONS.pause}</button>`,
+    paused: `<button class="island-button orange" data-island="resume" aria-label="Fortsetzen">${ICONS.play}</button>`,
+    done: `<button class="island-button green" data-island="restart" aria-label="Nochmal">${ICONS.restart}</button>`,
   }[status];
 
   island.innerHTML = `
@@ -606,7 +638,7 @@ function renderIsland() {
         <span class="island-big">${status === "done" ? "Pause vorbei" : `<span class="island-time">${time}</span>`}</span>
       </a>
       <div class="island-buttons">
-        <button class="island-button gray" data-island="reset" aria-label="${status === "done" ? "Fertig" : "Abbrechen"}">✕</button>
+        <button class="island-button gray" data-island="reset" aria-label="${status === "done" ? "Fertig" : "Abbrechen"}">${ICONS.close}</button>
         ${mainButton}
       </div>
     </div>
@@ -947,10 +979,10 @@ function renderSettings() {
   const goalCard = `
     <h2 class="section-title">Wochenziel</h2>
     <div class="settings-row">
-      <span class="settings-label">Trainingstage pro Woche</span>
+      <span class="settings-label">Tage pro Woche</span>
       <button class="step-button" data-action="goal-step" data-delta="-1"
-        ${goal !== null && goal <= 1 ? "disabled" : ""} aria-label="Ein Tag weniger">−</button>
-      <span class="goal-value">${goal === null ? "–" : goal}</span>
+        ${goal === null || goal <= 1 ? "disabled" : ""} aria-label="Ein Tag weniger">−</button>
+      <span class="goal-value ${goal === null ? "unset" : ""}">${goal === null ? "Keins" : goal}</span>
       <button class="step-button" data-action="goal-step" data-delta="1"
         ${goal !== null && goal >= 7 ? "disabled" : ""} aria-label="Ein Tag mehr">+</button>
     </div>

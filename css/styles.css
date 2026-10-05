@@ -182,6 +182,19 @@ body.scrolled .nav-title {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.3px;
+  /* Lange deutsche Wörter mit Trennstrich umbrechen ("Kurzhantel-rudern").
+     Funktioniert, weil im HTML lang="de" steht. */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* Lange Titel: kleiner und höchstens zwei Zeilen, danach "…" */
+.large-title.long {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 26px;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* ===== Inhalt ===== */
@@ -204,9 +217,19 @@ body.scrolled .nav-title {
   text-decoration: none;
 }
 
+/* Hinweis, wenn etwas noch leer ist: als Karte wie eine leere Liste */
 .placeholder {
   margin: 0 0 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
   color: var(--text-muted);
+  font-size: 15px;
+}
+
+/* Gleich danach ein Knopf: kein doppelter Abstand */
+.placeholder + .button-secondary {
+  margin-top: 8px;
 }
 
 /* Überschrift über einer Liste, wie in den iOS-Einstellungen */
@@ -1133,13 +1156,31 @@ body.has-island .back-link {
 }
 
 .island-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 50px;
   height: 50px;
+  padding: 0;
   border: none;
   border-radius: 50%;
-  font-size: 18px;
-  font-weight: 700;
   cursor: pointer;
+}
+
+/* Gefüllte Symbole (Pause, Weiter) übernehmen die Schriftfarbe */
+.island-button svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+/* Linien-Symbole (Nochmal, Schließen) */
+.island-button svg.stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .island-button:active {
@@ -1178,7 +1219,9 @@ body.has-island .back-link {
    sauber einrasten, wie bei den Widgets auf dem iPhone-Homescreen. */
 .widget-carousel {
   display: flex;
-  gap: 12px;
+  /* Lücke so groß wie der Seitenrand (16px). Sonst blitzt am rechten
+     Rand ein schmaler Streifen des nächsten Widgets hervor. */
+  gap: 16px;
   /* Bis an den Bildschirmrand wischen, Inhalt aber bündig mit dem Rest */
   margin: 0 -16px;
   padding: 0 16px;
@@ -1980,4 +2023,21 @@ body.has-island .back-link {
 ::view-transition-group(*) {
   animation-duration: 0.35s;
   animation-timing-function: cubic-bezier(0.3, 1, 0.4, 1);
+}
+
+/* ===== Korrekturen aus dem Design-Check ===== */
+
+/* Etikett ("Heute dran", "Läuft") direkt hinter dem Namen der Einheit,
+   damit die zweite Zeile die volle Breite behält */
+.unit-card .exercise-name .badge {
+  margin-left: 6px;
+  vertical-align: 3px;
+}
+
+/* Wochenziel noch nicht festgelegt: grauer Text statt Zahl */
+.goal-value.unset {
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 400;
 }

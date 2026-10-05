@@ -412,8 +412,14 @@ const Store = {
   },
 
   // Die Einheit, deren Training gerade läuft (heute), sonst null
+  // Gilt erst als "laufend", wenn schon etwas passiert ist (Wiederholungen
+  // eingetragen, abgehakt oder übersprungen). Nur Reinschauen zählt nicht.
   getRunningUnitId() {
-    return currentWorkout && isToday(currentWorkout.startedAt) ? currentWorkout.unitId : null;
+    if (!currentWorkout || !isToday(currentWorkout.startedAt)) return null;
+    const active = Object.values(currentWorkout.exercises).some(
+      (e) => e.done || e.skipped || e.sets.some((set) => set.reps !== null)
+    );
+    return active ? currentWorkout.unitId : null;
   },
 
   // ----- Laufendes Training -----

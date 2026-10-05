@@ -452,8 +452,11 @@ document.addEventListener(
   (event) => {
     const carousel = event.target;
     if (!(carousel instanceof Element) || !carousel.matches(".widget-carousel")) return;
-    const widgetWidth = carousel.firstElementChild.getBoundingClientRect().width;
-    const index = Math.round(carousel.scrollLeft / widgetWidth);
+    // Abstand von einem Widget zum nächsten (Breite + Lücke)
+    const step = carousel.children[1]
+      ? carousel.children[1].offsetLeft - carousel.children[0].offsetLeft
+      : carousel.clientWidth;
+    const index = Math.round(carousel.scrollLeft / step);
     carousel.nextElementSibling.querySelectorAll(".dot").forEach((dot, i) => {
       dot.classList.toggle("active", i === index);
     });
@@ -646,21 +649,23 @@ function renderExerciseHistory(exerciseId, metric) {
   // Kennzahlen: bestes Gewicht bzw. Volumen und Veränderung seit Beginn
   const weights = historyPoints(history, "weight").map((p) => p.value);
   const volumes = historyPoints(history, "volume").map((p) => p.value);
-  const change = (list) => {
+  // Veränderung vom ersten zum letzten Training, mit Einheit.
+  // Bei nur einem Training gibt es keine Veränderung: nur "–" ohne Einheit.
+  const change = (list, unit) => {
     if (list.length < 2) return "–";
     const diff = list[list.length - 1] - list[0];
-    return (diff > 0 ? "+" : diff < 0 ? "−" : "±") + formatGerman(Math.abs(diff));
+    return (diff > 0 ? "+" : diff < 0 ? "−" : "±") + formatGerman(Math.abs(diff)) + " " + unit;
   };
   const stats = bodyweight
     ? [
         ["Bestes Volumen", `${formatGerman(Math.max(...volumes))} Wdh.`],
-        ["Seit Beginn", `${change(volumes)} Wdh.`],
-        ["Trainings", history.length],
+        ["Seit Beginn", change(volumes, "Wdh.")],
+        [history.length === 1 ? "Training" : "Trainings", history.length],
       ]
     : [
         ["Höchstes Gewicht", `${formatGerman(Math.max(...weights))} kg`],
-        ["Seit Beginn", `${change(weights)} kg`],
-        ["Trainings", history.length],
+        ["Seit Beginn", change(weights, "kg")],
+        [history.length === 1 ? "Training" : "Trainings", history.length],
       ];
 
   // Die letzten 5 Trainings als Liste, neuestes zuerst (die "Tabelle" zum Diagramm)

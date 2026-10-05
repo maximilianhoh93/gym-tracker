@@ -108,7 +108,11 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
   - Listen als gruppierte iOS-Listen: ein abgerundeter Block, Zeilen durch eingerückte Haarlinien getrennt, grauer Pfeil › rechts; Überschriften klein, grau, in Großbuchstaben.
   - Drei Knopfarten: gefüllt (Hauptaktion), getönt (zarter Farbton, z.B. „+ Satz“), Text.
   - Entfernen als graues ⓧ, Auswahl als blaues Häkchen rechts, Abhaken als Kreis links (wie Erinnerungen).
-  - Navigationsleiste wie iOS: Zurück-Link nennt das Ziel („‹ Pläne“), großer Titel im Inhalt, beim Scrollen kleiner Titel in einer verschwommenen Leiste.
+  - Navigationsleiste wie iOS: Zurück-Link nennt das Ziel („‹ Pläne“), großer Titel im Inhalt, beim Scrollen kleiner Titel in einer verschwommenen Leiste. Lange Titel werden kleiner, deutsch getrennt und auf zwei Zeilen begrenzt.
+  - Leere Zustände („Noch keine …“) immer als Hinweis-Karte, nie als loser Text.
+  - Zusammenfassungen von Sätzen bleiben einzeilig: bei wechselndem Gewicht oder mehr als 4 Sätzen kurz als „6 Sätze · 95–102,5 kg“.
+  - Symbole als SVG-Grafiken, nicht als Schriftzeichen (die sehen je nach Gerät anders aus).
+  - Ein Training gilt erst als „Läuft“, wenn etwas eingetragen, abgehakt oder übersprungen wurde.
 - Tab-Leiste wie bei iOS: schlichte Linien-Symbole (SVG) statt Emojis, einheitlich grau, der aktive Tab blau; leicht durchscheinender, verschwommener Hintergrund.
 - „Heute dran“ und „Aktiv“ werden nur als Etikett gezeigt, nicht als Rahmen (sah sonst aus wie eine Auswahl).
 - Hover-Effekte (Hervorhebung beim Darüberfahren mit der Maus) für Tabs, Karten und Knöpfe, aber nur auf Geräten mit Maus (`@media (hover: hover)`), damit sie auf dem iPhone nicht „kleben bleiben“.
