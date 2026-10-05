@@ -481,8 +481,15 @@ body {
   font-weight: 600;
 }
 
+/* Beim Antippen (iPhone) bzw. Darüberfahren (Maus, siehe unten) bekommt
+   die Einheit einen blauen Rahmen: So sieht man, welche man gerade wählt.
+   inset = der Rahmen liegt innen, das Kästchen wird also nicht größer. */
+.unit-card {
+  transition: box-shadow 0.15s;
+}
+
 .unit-card:active {
-  opacity: 0.6;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 
@@ -1370,8 +1377,11 @@ button.button-secondary {
   }
 
   /* Karten und Zeilen, die man antippen kann */
+  .unit-card:hover {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+
   .card-link:hover,
-  .unit-card:hover,
   .pick-card:hover,
   .exercise-card:has(.card-main:hover),
   .button-secondary:hover,

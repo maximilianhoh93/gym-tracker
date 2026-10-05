@@ -54,6 +54,58 @@ function shortDate(isoText) {
 
 // ===== Widgets der Startseite =====
 
+// Heute bewegtes Gewicht: Summe aus Gewicht × Wiederholungen aller Sätze
+// von abgehakten Übungen, aus dem laufenden Training und aus heute
+// beendeten Trainings. Übungen ohne Gewicht (z.B. Klimmzüge) zählen nicht.
+function renderTodayWidget(workouts) {
+  const today = new Date().toDateString();
+  // Alle heute abgehakten Übungen sammeln: [{ exerciseId, sets }]
+  const entries = [];
+  workouts
+    .filter((w) => new Date(w.date).toDateString() === today)
+    .forEach((w) => w.exercises.forEach((e) => e.done && !e.skipped && entries.push(e)));
+  const current = Store.getCurrentWorkout();
+  if (current && new Date(current.startedAt).toDateString() === today) {
+    Object.entries(current.exercises).forEach(([exerciseId, e]) => {
+      // Nur Sätze mit Wiederholungen; ein Gewicht allein ist nur vorbelegt
+      if (e.done && !e.skipped) entries.push({ exerciseId, sets: e.sets.filter((s) => s.reps !== null) });
+    });
+  }
+
+  const total = entries.reduce(
+    (sum, e) => sum + e.sets.reduce((s, set) => s + (set.weight || 0) * set.reps, 0),
+    0
+  );
+  const setCount = entries.reduce((sum, e) => sum + e.sets.length, 0);
+
+  if (entries.length === 0) {
+    return `
+      <div class="widget-title">Heute bewegt</div>
+      <p class="widget-empty">Noch keine Übung abgehakt. Sobald du heute eine Übung abhakst, siehst du hier, wie viel Gewicht du insgesamt bewegt hast.</p>
+    `;
+  }
+
+  // Zum Vergleich: das Volumen des letzten Trainings vor heute
+  const before = workouts
+    .filter((w) => new Date(w.date).toDateString() !== today)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const beforeTotal = before
+    ? before.exercises
+        .filter((e) => e.done && !e.skipped)
+        .reduce((sum, e) => sum + e.sets.reduce((s, set) => s + (set.weight || 0) * set.reps, 0), 0)
+    : null;
+
+  return `
+    <div class="widget-title">Heute bewegt</div>
+    <div class="hero-row">
+      <span class="hero-number">${formatGerman(total)}</span>
+      <span class="hero-unit">kg</span>
+    </div>
+    <div class="widget-subtitle">${entries.length} ${entries.length === 1 ? "Übung" : "Übungen"} · ${setCount} ${setCount === 1 ? "Satz" : "Sätze"} · Gewicht × Wiederholungen</div>
+    ${beforeTotal ? `<div class="widget-footnote">Letztes Training: ${formatGerman(beforeTotal)} kg</div>` : ""}
+  `;
+}
+
 // Trainings in diesem Monat, mit kleinem Kalender
 function renderMonthWidget(workouts) {
   const now = new Date();
@@ -176,7 +228,12 @@ function renderDurationWidget(workouts) {
 // Alle Widgets als wischbare Reihe ("Karussell") mit Punkten darunter
 function renderWidgets() {
   const workouts = Store.getWorkouts();
-  const widgets = [renderMonthWidget(workouts), renderVolumeWidget(workouts), renderDurationWidget(workouts)];
+  const widgets = [
+    renderTodayWidget(workouts),
+    renderMonthWidget(workouts),
+    renderVolumeWidget(workouts),
+    renderDurationWidget(workouts),
+  ];
   return `
     <div class="widget-carousel" aria-label="Statistiken, zum Wechseln wischen">
       ${widgets.map((html) => `<section class="widget">${html}</section>`).join("")}

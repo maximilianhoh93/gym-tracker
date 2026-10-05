@@ -36,10 +36,12 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 ### Startseite
 - Tabs unten: Start, Pläne, Übungen, Daten. Einen eigenen Tab „Verlauf“ gibt es nicht; der Verlauf steckt in der jeweiligen Übung.
 - Oben wischbare Widgets (Karussell mit Punkten), nicht überladen:
+  - Heute bewegt (an erster Stelle): Summe aus Gewicht × Wiederholungen aller Sätze von heute abgehakten Übungen, zählt schon während des Trainings; Vergleich zum letzten Training
   - Diesen Monat: Anzahl Trainings, kleiner Monatskalender, Vergleich zum Vormonat
   - Volumen diese Woche: Sätze pro Muskelgruppe (Montag bis heute). Sätze statt kg, weil kg zwischen Muskelgruppen nicht vergleichbar sind
   - Ø Trainingsdauer der letzten 10 Trainings (nur plausible Dauern von 5 Minuten bis 4 Stunden)
 - Darunter „Training starten“ mit den Einheiten des aktiven Plans. Ein begonnenes, nicht beendetes Training ist mit „Läuft“ markiert.
+- Die Einheit unter dem Mauszeiger (bzw. beim Antippen auf dem iPhone) bekommt einen blauen Rahmen.
 
 ### Training durchführen
 - Die Startseite zeigt die Einheiten des aktiven Plans. Ein Tipp auf eine Einheit (z.B. Push) startet das Training und zeigt ihre Übungen.

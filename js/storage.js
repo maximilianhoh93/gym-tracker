@@ -327,6 +327,11 @@ const Store = {
     return structuredClone(history);
   },
 
+  // Das laufende Training als Kopie (oder null), z.B. für "Heute bewegt"
+  getCurrentWorkout() {
+    return currentWorkout ? structuredClone(currentWorkout) : null;
+  },
+
   // Die Einheit, deren Training gerade läuft (heute), sonst null
   getRunningUnitId() {
     return currentWorkout && isToday(currentWorkout.startedAt) ? currentWorkout.unitId : null;
