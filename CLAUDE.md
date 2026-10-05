@@ -40,12 +40,13 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Übungen lassen sich abhaken.
 
 ### Sätze, Gewicht, Wiederholungen
-- Pro Übung standardmäßig 2 Sätze, die Anzahl ist änderbar (z.B. auf 3).
-- Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich, muss aber innerhalb einer Übung änderbar sein.
+- Ein Tipp auf eine Übung im Training öffnet ihre Seite. Oben stehen die Sätze (Satznummer, kg, Wdh.).
+- Pro Übung standardmäßig 2 Sätze, mit „+ Satz“/„− Satz“ änderbar. Jede Übung merkt sich ihre zuletzt verwendete Satzanzahl.
+- Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich: Ein Gewicht wird in die folgenden Sätze übernommen, solange die leer sind oder denselben Wert hatten. Einzeln bleibt es änderbar. Ein neuer Satz übernimmt die Werte des vorherigen.
 
 ### Pausentimer
-- Im Training öffnet ein Tipp auf eine Übung ihre eigene Seite. Dort gibt es den Pausentimer.
-- Der Timer wird manuell gestartet. Standardwert: 2 Minuten, die Dauer ist änderbar (Schnellwahl 1:00/1:30/2:00/3:00, ±15 s).
+- Auf der Übungsseite unter den Sätzen eine schmale, dezente Zeile: „Pause − 2:00 + Start“.
+- Der Timer wird manuell gestartet. Standardwert: 2 Minuten, in 15-Sekunden-Schritten änderbar.
 - Jede Übung merkt sich ihre zuletzt eingestellte Pausenzeit.
 - Beim Start poppt oben links in der Ecke ein kleiner schwarzer Kreis auf, mit einem orangen Ring, der wie eine Ladeanzeige abläuft. Sichtbar auf allen Seiten. Bewusst nicht oben mittig, damit die echte Dynamic Island des iPhones frei bleibt.
 - Antippen klappt ihn zu einer Ansicht auf (Übungsname, große Zeit, Anhalten/Fortsetzen, Abbrechen). Ein Tipp daneben klappt sie zu.
@@ -87,6 +88,7 @@ Bitte in dieser Reihenfolge bauen und jeweils testen, bevor es weitergeht:
 - [x] 3. Übungen pro Einheit anlegen (Übungs-Pool nach Muskelgruppen, Auswahl pro Einheit, Sortieren per Drag and Drop; noch nicht dauerhaft gespeichert, das folgt in Schritt 7)
 - [x] Zusatz: aktiver Plan, Einheiten auf der Trainingsseite mit „Zuletzt“ und „Heute dran“, Einheiten per Drag and Drop sortierbar
 - [x] 6. Pausentimer (vorgezogen; `js/timer.js`)
+- [ ] 4. teilweise: Sätze mit Gewicht und Wiederholungen erfassen ist fertig. Es fehlen: Übungen abhaken, Training beenden (speichert es in `workouts`, dann stimmt auch „Zuletzt“)
 
 Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localhost:8000 öffnen.
 

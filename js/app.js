@@ -213,6 +213,8 @@ function renderWorkout(container, plan, unitId) {
     return;
   }
   setHeader(unit.name, "#training");
+  // Training dieser Einheit beginnen (oder das laufende weiterführen)
+  Store.startWorkout(plan.id, unit.id);
 
   const exercises = unit.exerciseIds.map((id) => Store.getExercise(id)).filter(Boolean);
   const cards = exercises
@@ -240,7 +242,7 @@ function renderWorkout(container, plan, unitId) {
   `;
 }
 
-// Eine Übung im Training: Pausentimer, später auch die Sätze
+// Eine Übung im Training: oben die Sätze, darunter der Pausentimer
 function renderExerciseView(container, plan, unitId, exerciseId) {
   const unit = Store.getUnit(plan.id, unitId);
   const exercise = Store.getExercise(exerciseId);
@@ -249,6 +251,8 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
     return;
   }
   setHeader(exercise.name, "#training/" + unit.id);
+  // Falls man direkt über einen Link hier gelandet ist
+  Store.startWorkout(plan.id, unit.id);
 
   // Position in der Einheit, für "Übung 2 von 5" und den Weiter-Knopf
   const index = unit.exerciseIds.indexOf(exercise.id);
@@ -259,31 +263,73 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
          Nächste Übung: ${escapeHtml(nextExercise.name)} ›</a>`
     : `<a class="button-secondary" href="#training/${unit.id}">Zurück zur Übersicht</a>`;
 
-  // Die Timer-Karte merkt sich in data-exercise, zu welcher Übung sie gehört
+  const sets = Store.getSets(exercise.id);
+
+  // Eine Zeile pro Satz. Die Eingabefelder merken sich in data-index und
+  // data-field, welcher Satz und welcher Wert gemeint ist.
+  // inputmode sagt dem iPhone, welche Tastatur es zeigen soll:
+  // "decimal" = Zahlen mit Komma (für 62,5 kg), "numeric" = nur Ziffern.
+  const rows = sets
+    .map(
+      (set, i) => `
+        <div class="set-row">
+          <span class="set-number">${i + 1}</span>
+          <input class="set-input" type="text" inputmode="decimal" placeholder="0"
+            value="${formatNumber(set.weight)}" data-index="${i}" data-field="weight"
+            aria-label="Gewicht Satz ${i + 1} in kg">
+          <input class="set-input" type="text" inputmode="numeric" placeholder="0"
+            value="${formatNumber(set.reps)}" data-index="${i}" data-field="reps"
+            aria-label="Wiederholungen Satz ${i + 1}">
+        </div>
+      `
+    )
+    .join("");
+
+  // Die Timer-Zeile merkt sich in data-exercise, zu welcher Übung sie gehört
   container.innerHTML = `
     <p class="intro">
       ${escapeHtml(muscleGroupName(exercise.muscleGroupId))} · Übung ${index + 1} von ${unit.exerciseIds.length}
     </p>
-    <div id="timer-card" class="timer-card" data-exercise="${exercise.id}" data-unit="${unit.id}">
+    <div class="sets-card">
+      <div class="set-row set-header">
+        <span>Satz</span>
+        <span>kg</span>
+        <span>Wdh.</span>
+      </div>
+      ${rows}
+    </div>
+    <div class="set-buttons">
+      <button class="pill-button" data-action="remove-set" ${sets.length <= 1 ? "disabled" : ""}>− Satz</button>
+      <button class="pill-button" data-action="add-set">+ Satz</button>
+    </div>
+    <div id="timer-card" class="timer-row" data-exercise="${exercise.id}" data-unit="${unit.id}">
       ${renderTimerCard(exercise.id)}
     </div>
-    <h2 class="section-title">Sätze</h2>
-    <p class="placeholder">Sätze mit Gewicht und Wiederholungen erfassen kommt im nächsten Schritt.</p>
     ${nextLink}
   `;
 }
 
+// Zahl für ein Eingabefeld: null -> "", 62.5 -> "62,5" (deutsches Komma)
+function formatNumber(value) {
+  return value === null || value === undefined ? "" : String(value).replace(".", ",");
+}
+
+// Eingabe in eine Zahl umwandeln: "62,5" -> 62.5, "" -> null.
+// parseFloat liest eine Kommazahl, versteht aber nur den Punkt.
+function parseNumber(text) {
+  const number = parseFloat(text.trim().replace(",", "."));
+  // isNaN = "is Not a Number": Eingabe war keine Zahl (z.B. leer)
+  return isNaN(number) ? null : number;
+}
+
 // ===== Pausentimer: Anzeige =====
 // Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt:
-// 1. Auf der Übungsseite eine kleine Karte: Pausenzeit einstellen und starten.
+// 1. Auf der Übungsseite eine schmale Zeile: Pausenzeit einstellen und starten.
 // 2. Solange der Timer aktiv ist, sitzt oben links ein kleiner schwarzer
 //    Kreis mit einem orangen Ring, der wie eine Ladeanzeige abläuft.
 //    Antippen klappt ihn zu einer Ansicht mit Zeit und Knöpfen auf.
 //    (Im Code heißt dieses Widget "island", also "Insel".)
 //    Oben links, damit die echte Dynamic Island des iPhones frei bleibt.
-
-// Schnellwahl-Dauern in Sekunden
-const TIMER_PRESETS = [60, 90, 120, 180];
 
 // Fortschrittsring im Kreis. Umfang = 2 · π · Radius.
 // Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
@@ -294,28 +340,16 @@ const MINI_RING_CIRCUMFERENCE = 2 * Math.PI * MINI_RING_RADIUS;
 // Ist das Widget gerade aufgeklappt?
 let islandExpanded = false;
 
-// ----- Karte auf der Übungsseite -----
+// ----- Schmale Timer-Zeile auf der Übungsseite -----
 
 function renderTimerCard(exerciseId) {
   const restSeconds = Store.getRestSeconds(exerciseId);
-
-  const presets = TIMER_PRESETS.map(
-    (seconds) => `
-      <button class="preset ${seconds === restSeconds ? "selected" : ""}"
-        data-action="timer-preset" data-seconds="${seconds}">${formatDuration(seconds * 1000)}</button>`
-  ).join("");
-
   return `
-    <div class="rest-header">
-      <span class="rest-title">Pausenzeit</span>
-      <span class="rest-value">${formatDuration(restSeconds * 1000)}</span>
-    </div>
-    <div class="timer-adjust">
-      <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−15 s</button>
-      ${presets}
-      <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+15 s</button>
-    </div>
-    <button class="button-primary button-wide" data-action="timer-start">Pause starten</button>
+    <span class="timer-row-title">Pause</span>
+    <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−</button>
+    <span class="rest-value">${formatDuration(restSeconds * 1000)}</span>
+    <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+</button>
+    <button class="timer-start-button" data-action="timer-start">Start</button>
   `;
 }
 
@@ -340,8 +374,6 @@ function handleTimerAction(button) {
       exerciseId: exerciseId,
       exerciseName: exercise.name,
     });
-  } else if (action === "timer-preset") {
-    Store.setRestSeconds(exerciseId, Number(button.dataset.seconds));
   } else if (action === "timer-adjust") {
     // Zwischen 15 Sekunden und 10 Minuten bleiben
     const seconds = Store.getRestSeconds(exerciseId) + Number(button.dataset.delta);
@@ -754,6 +786,19 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Sätze hinzufügen/entfernen. Auf der Übungsseite steht die id der
+  // Übung an zweiter Stelle der Adresse: #training/<einheit>/<übung>
+  if (action === "add-set" || action === "remove-set") {
+    const currentExerciseId = parseHash().params[1];
+    if (action === "add-set") {
+      Store.addSet(currentExerciseId);
+    } else {
+      Store.removeSet(currentExerciseId);
+    }
+    renderCurrentView();
+    return;
+  }
+
   if (action === "activate-plan") {
     Store.setActivePlan(button.dataset.plan);
   } else if (action === "toggle-in-unit") {
@@ -776,6 +821,35 @@ appMain.addEventListener("click", (event) => {
   }
 
   renderCurrentView();
+});
+
+// Eingabe in ein Satz-Feld (Gewicht oder Wiederholungen).
+// "input" feuert bei jedem getippten Zeichen. Wir speichern sofort, zeichnen
+// aber NICHT neu, sonst würde das Feld beim Tippen den Fokus verlieren.
+appMain.addEventListener("input", (event) => {
+  const input = event.target;
+  if (!input.matches(".set-input")) return;
+
+  const exerciseId = parseHash().params[1];
+  const index = Number(input.dataset.index);
+  const field = input.dataset.field;
+  const newValue = parseNumber(input.value);
+  const oldValue = Store.getSets(exerciseId)[index][field];
+
+  Store.updateSet(exerciseId, index, field, newValue);
+
+  // Gewicht ist meist in allen Sätzen gleich: Den neuen Wert in die
+  // FOLGENDEN Sätze übernehmen, sofern dort noch nichts oder derselbe alte
+  // Wert stand. Bewusst geänderte Gewichte bleiben unangetastet.
+  if (field !== "weight") return;
+  Store.getSets(exerciseId).forEach((set, i) => {
+    if (i <= index) return;
+    if (set.weight === null || set.weight === oldValue) {
+      Store.updateSet(exerciseId, i, "weight", newValue);
+      const other = document.querySelector(`.set-input[data-index="${i}"][data-field="weight"]`);
+      if (other) other.value = formatNumber(newValue);
+    }
+  });
 });
 
 // ===== Drag and Drop zum Sortieren =====

@@ -16,9 +16,15 @@
 // - activePlanId: der Plan, mit dem gerade trainiert wird (oder null)
 // - workouts: absolvierte Trainings, z.B. { unitId: "ppl-push", date: "2026-10-05T18:30:00.000Z", ... }.
 //   Wird ab Schritt 4 befüllt.
+// - currentWorkout: das gerade laufende Training (oder null). Pro Übung
+//   die Sätze mit Gewicht (kg) und Wiederholungen:
+//   { unitId: "ppl-push", exercises: { "<übung-id>": { sets: [{ weight: 60, reps: 10 }, ...] } } }
 
 // Standard-Pausenzeit für neue Übungen in Sekunden (2 Minuten)
 const DEFAULT_REST_SECONDS = 120;
+
+// Standard-Anzahl der Sätze pro Übung
+const DEFAULT_SET_COUNT = 2;
 
 // Die Muskelgruppen, nach denen der Pool sortiert ist (in dieser Reihenfolge)
 const MUSCLE_GROUPS = [
@@ -84,6 +90,7 @@ let plans = structuredClone(DEFAULT_PLANS);
 let exercises = [];
 let activePlanId = null;
 let workouts = [];
+let currentWorkout = null;
 
 const Store = {
   // ----- Muskelgruppen -----
@@ -200,6 +207,53 @@ const Store = {
     return new Date(Math.max(...dates));
   },
 
+  // ----- Laufendes Training -----
+
+  // Training für eine Einheit beginnen. Läuft schon eins für dieselbe
+  // Einheit, passiert nichts (die eingetragenen Sätze bleiben erhalten).
+  startWorkout(planId, unitId) {
+    if (currentWorkout && currentWorkout.unitId === unitId) return;
+    currentWorkout = {
+      id: createId(),
+      planId: planId,
+      unitId: unitId,
+      startedAt: new Date().toISOString(), // Zeitpunkt als Text, z.B. "2026-10-05T18:30:00.000Z"
+      exercises: {},
+    };
+  },
+
+  // Die Sätze einer Übung im laufenden Training
+  getSets(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    return entry ? structuredClone(entry.sets) : [];
+  },
+
+  // Einen Wert eines Satzes ändern. field ist "weight" oder "reps",
+  // value eine Zahl oder null (leer).
+  updateSet(exerciseId, index, field, value) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry || !entry.sets[index]) return;
+    entry.sets[index][field] = value;
+  },
+
+  // Satz hinzufügen. Er übernimmt Gewicht und Wiederholungen vom letzten Satz.
+  addSet(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry) return;
+    const last = entry.sets[entry.sets.length - 1];
+    // { ...last } erstellt eine Kopie des letzten Satzes
+    entry.sets.push(last ? { ...last } : { weight: null, reps: null });
+    rememberSetCount(exerciseId, entry.sets.length);
+  },
+
+  // Letzten Satz entfernen (mindestens einer bleibt)
+  removeSet(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry || entry.sets.length <= 1) return;
+    entry.sets.pop(); // pop() entfernt das letzte Element
+    rememberSetCount(exerciseId, entry.sets.length);
+  },
+
   // ----- Einheiten -----
 
   // Eine einzelne Einheit eines Plans (oder undefined)
@@ -238,6 +292,26 @@ const Store = {
 function findUnit(planId, unitId) {
   const plan = plans.find((p) => p.id === planId);
   return plan ? plan.units.find((u) => u.id === unitId) : undefined;
+}
+
+// Eintrag einer Übung im laufenden Training. Gibt es noch keinen, wird er
+// mit der gemerkten Satzanzahl (Standard: 2) und leeren Sätzen angelegt.
+function workoutEntry(exerciseId) {
+  if (!currentWorkout) return null;
+  if (!currentWorkout.exercises[exerciseId]) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    const count = exercise && exercise.setCount ? exercise.setCount : DEFAULT_SET_COUNT;
+    // Array.from({ length: 2 }, ...) erzeugt eine Liste mit 2 Einträgen
+    const sets = Array.from({ length: count }, () => ({ weight: null, reps: null }));
+    currentWorkout.exercises[exerciseId] = { sets: sets };
+  }
+  return currentWorkout.exercises[exerciseId];
+}
+
+// Die Übung merkt sich, wie viele Sätze man zuletzt gemacht hat
+function rememberSetCount(exerciseId, count) {
+  const exercise = exercises.find((ex) => ex.id === exerciseId);
+  if (exercise) exercise.setCount = count;
 }
 
 // Erzeugt eine eindeutige id für neue Einträge, z.B. "lx3k9a-4f2b".
