@@ -13,6 +13,9 @@
 // - plans: die Trainingsarten. Eine Einheit speichert nur die ids der
 //   ausgewählten Übungen ("exerciseIds"), in der gewünschten Reihenfolge.
 //   So ist "Bankdrücken" in Push und in Oberkörper dieselbe Übung.
+// - activePlanId: der Plan, mit dem gerade trainiert wird (oder null)
+// - workouts: absolvierte Trainings, z.B. { unitId: "ppl-push", date: "2026-10-05T18:30:00.000Z", ... }.
+//   Wird ab Schritt 4 befüllt.
 
 // Die Muskelgruppen, nach denen der Pool sortiert ist (in dieser Reihenfolge)
 const MUSCLE_GROUPS = [
@@ -76,6 +79,8 @@ const DEFAULT_PLANS = [
 // damit die Vorlage oben unverändert bleibt.
 let plans = structuredClone(DEFAULT_PLANS);
 let exercises = [];
+let activePlanId = null;
+let workouts = [];
 
 const Store = {
   // ----- Muskelgruppen -----
@@ -141,6 +146,42 @@ const Store = {
     const plan = plans.find((p) => p.id === planId);
     return plan ? structuredClone(plan) : undefined;
   },
+
+  // ----- Aktiver Plan -----
+
+  getActivePlanId() {
+    return activePlanId;
+  },
+
+  setActivePlan(planId) {
+    activePlanId = planId;
+  },
+
+  // Neue Reihenfolge der Einheiten eines Plans übernehmen (nach Drag and Drop)
+  setUnitOrder(planId, orderedUnitIds) {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    // Zu jeder id die passende Einheit suchen; unbekannte ids fallen weg
+    const reordered = orderedUnitIds
+      .map((id) => plan.units.find((u) => u.id === id))
+      .filter(Boolean);
+    // Nur übernehmen, wenn keine Einheit verloren gegangen ist
+    if (reordered.length === plan.units.length) {
+      plan.units = reordered;
+    }
+  },
+
+  // ----- Trainings -----
+
+  // Datum des letzten Trainings einer Einheit (als Date) oder null
+  getLastWorkoutDate(unitId) {
+    const dates = workouts.filter((w) => w.unitId === unitId).map((w) => new Date(w.date));
+    if (dates.length === 0) return null;
+    // Math.max liefert die größte Zahl, also den spätesten Zeitpunkt
+    return new Date(Math.max(...dates));
+  },
+
+  // ----- Einheiten -----
 
   // Eine einzelne Einheit eines Plans (oder undefined)
   getUnit(planId, unitId) {

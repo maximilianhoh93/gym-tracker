@@ -180,43 +180,39 @@ body {
   font-size: 14px;
 }
 
-/* ===== Listen (z.B. Einheiten eines Plans) ===== */
-.list {
-  margin: 0;
-  padding: 0;
-  list-style: none; /* Keine Aufzählungspunkte */
-  background: var(--surface);
-  border-radius: 14px;
-  overflow: hidden; /* Ecken der ersten/letzten Zeile mit abrunden */
+/* ===== Aktiver Plan ===== */
+/* Kleines farbiges Etikett, z.B. "Aktiv" oder "Heute dran" */
+.badge {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
-.list-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Titel links, Info rechts */
-  gap: 12px;
-  min-height: 52px;
-  padding: 12px 16px;
+.card-title .badge {
+  margin-left: 6px;
 }
 
-/* Trennlinie zwischen den Listeneinträgen, aber nicht über dem ersten */
-.list > li + li {
-  border-top: 1px solid var(--border);
+/* Der aktive Plan bekommt einen farbigen Rahmen */
+.card.active-plan {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-/* Zeile, die als Ganzes antippbar ist (Link) */
-.list-link {
-  color: var(--text);
+.active-note {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Links im Einleitungstext (z.B. "Plan bearbeiten") */
+.intro a {
+  color: var(--accent);
   text-decoration: none;
-}
-
-.list-link:active {
-  background: var(--border);
-}
-
-.list-meta {
-  font-size: 15px;
-  color: var(--text-muted);
 }
 
 /* ===== Runder Symbol-Knopf (z.B. ✕) ===== */
@@ -420,4 +416,55 @@ body {
 
 .button-secondary:active {
   opacity: 0.6;
+}
+
+/* Knopf über die ganze Breite */
+.button-wide {
+  width: 100%;
+  height: 52px;
+  margin-bottom: 8px;
+}
+
+/* ===== Kästchen mit Link und Griff (Einheiten eines Plans) ===== */
+/* Der Link nimmt den ganzen Platz links neben dem Griff ein */
+.card-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  align-self: stretch;
+  justify-content: center;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.card-main:active {
+  opacity: 0.6;
+}
+
+/* ===== Einheiten auf der Trainingsseite ===== */
+.unit-card {
+  min-height: 76px; /* Extra groß: Das ist die wichtigste Tipp-Fläche */
+  padding-right: 12px;
+  text-decoration: none;
+}
+
+.unit-card .exercise-name {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.unit-card:active {
+  opacity: 0.6;
+}
+
+/* Die Einheit, die heute dran ist, bekommt einen farbigen Rahmen */
+.unit-card.next {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 24px;
 }

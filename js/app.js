@@ -5,6 +5,7 @@
 // in derselben Ansicht.
 //
 // Unteransichten hängen wir mit "/" an:
+//   #training/ppl-push             -> Training der Einheit "Push" (aktiver Plan)
 //   #plaene/ppl                    -> der Plan "Push/Pull/Legs"
 //   #plaene/ppl/ppl-push           -> dessen Einheit "Push"
 //   #plaene/ppl/ppl-push/auswahl   -> Übungen für "Push" aus dem Pool auswählen
@@ -63,7 +64,9 @@ function renderCurrentView() {
   // Standard-Kopfzeile; einzelne Ansichten können sie überschreiben
   setHeader(VIEW_TITLES[viewName]);
 
-  if (viewName === "plaene") {
+  if (viewName === "training") {
+    renderTraining(params[0]);
+  } else if (viewName === "plaene") {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
     renderUebungen();
@@ -142,6 +145,124 @@ function renderExerciseForm(planId = "", unitId = "") {
   `;
 }
 
+// ===== Ansicht "Training" =====
+// Ohne unitId: Einheiten des aktiven Plans zur Auswahl.
+// Mit unitId: das Training dieser Einheit.
+function renderTraining(unitId) {
+  const container = document.getElementById("view-training");
+  const plan = Store.getPlan(Store.getActivePlanId());
+
+  // Noch kein Plan aktiviert -> Hinweis mit Weg zu den Plänen
+  if (!plan) {
+    container.innerHTML = `
+      <p class="intro">Du hast noch keinen Plan aktiviert. Wähle unter „Pläne“ eine Trainingsart
+        aus und tippe auf „Als aktiven Plan wählen“.</p>
+      <a class="button-secondary" href="#plaene">Plan auswählen</a>
+    `;
+    return;
+  }
+
+  if (unitId) {
+    renderWorkout(container, plan, unitId);
+    return;
+  }
+
+  const nextId = nextUnitId(plan);
+
+  const cards = plan.units
+    .map((unit) => {
+      const isNext = unit.id === nextId;
+      return `
+        <li>
+          <a class="exercise-card unit-card ${isNext ? "next" : ""}" href="#training/${unit.id}">
+            <span class="exercise-info">
+              <span class="exercise-name">${escapeHtml(unit.name)}</span>
+              <span class="exercise-meta">
+                ${exerciseCountText(unit.exerciseIds.length)} · ${lastDoneText(Store.getLastWorkoutDate(unit.id))}
+              </span>
+            </span>
+            ${isNext ? `<span class="badge">Heute dran</span>` : ""}
+            <span class="chevron" aria-hidden="true">›</span>
+          </a>
+        </li>
+      `;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <p class="intro">
+      ${escapeHtml(plan.name)} · <a href="#plaene/${plan.id}">Plan bearbeiten</a>
+    </p>
+    <h2 class="section-title">Welche Einheit trainierst du heute?</h2>
+    <ul class="card-list">${cards}</ul>
+  `;
+}
+
+// Training einer Einheit. Vorerst nur die Übungsliste; Sätze, Gewicht und
+// Wiederholungen erfassen kommt in Schritt 4.
+function renderWorkout(container, plan, unitId) {
+  const unit = Store.getUnit(plan.id, unitId);
+  if (!unit) {
+    location.hash = "training";
+    return;
+  }
+  setHeader(unit.name, "#training");
+
+  const exercises = unit.exerciseIds.map((id) => Store.getExercise(id)).filter(Boolean);
+  const cards = exercises
+    .map(
+      (exercise) => `
+        <li class="exercise-card">
+          <span class="exercise-info">
+            <span class="exercise-name">${escapeHtml(exercise.name)}</span>
+            <span class="exercise-meta">${escapeHtml(muscleGroupName(exercise.muscleGroupId))}</span>
+          </span>
+        </li>
+      `
+    )
+    .join("");
+
+  container.innerHTML = `
+    <p class="intro">${escapeHtml(plan.name)} · ${exerciseCountText(exercises.length)}</p>
+    ${exercises.length === 0
+      ? `<p class="placeholder">Diese Einheit hat noch keine Übungen.</p>
+         <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">Übungen auswählen</a>`
+      : `<ul class="card-list">${cards}</ul>
+         <p class="hint">Sätze, Gewicht und Wiederholungen erfassen kommt im nächsten Schritt.</p>`}
+  `;
+}
+
+// Welche Einheit ist als nächste dran? Die nach der zuletzt trainierten
+// (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
+// Wurde noch nie trainiert, ist es die erste.
+function nextUnitId(plan) {
+  let lastIndex = -1;
+  let lastDate = null;
+  plan.units.forEach((unit, index) => {
+    const date = Store.getLastWorkoutDate(unit.id);
+    if (date && (!lastDate || date > lastDate)) {
+      lastDate = date;
+      lastIndex = index;
+    }
+  });
+  // % (Modulo) ergibt den Rest der Division: Nach der letzten Einheit -> 0
+  return plan.units[(lastIndex + 1) % plan.units.length].id;
+}
+
+// "Noch nie trainiert", "Zuletzt heute", "Zuletzt gestern", "Zuletzt vor 3 Tagen"
+function lastDoneText(date) {
+  if (!date) return "Noch nie trainiert";
+  // Kalendertage vergleichen, nicht Stunden: gestern 23 Uhr ist "gestern"
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const days = Math.round((today - day) / (24 * 60 * 60 * 1000));
+  if (days === 0) return "Zuletzt heute";
+  if (days === 1) return "Zuletzt gestern";
+  return `Zuletzt vor ${days} Tagen`;
+}
+
 // ===== Ansicht "Pläne" =====
 // Ebenen: Übersicht aller Pläne -> ein Plan -> eine Einheit -> Auswahl
 function renderPlaene(planId, unitId, subView) {
@@ -188,12 +309,17 @@ function renderPlaene(planId, unitId, subView) {
 
 // Übersicht: eine Karte pro Trainingsart
 function renderPlanList(plans) {
+  const activePlanId = Store.getActivePlanId();
+
   // map() macht aus jedem Plan ein Stück HTML, join("") klebt alles zusammen
   const cards = plans
     .map(
       (plan) => `
-        <a class="card card-link" href="#plaene/${plan.id}">
-          <h2 class="card-title">${escapeHtml(plan.name)}</h2>
+        <a class="card card-link ${plan.id === activePlanId ? "active-plan" : ""}" href="#plaene/${plan.id}">
+          <h2 class="card-title">
+            ${escapeHtml(plan.name)}
+            ${plan.id === activePlanId ? `<span class="badge">Aktiv</span>` : ""}
+          </h2>
           <p class="card-text">${escapeHtml(plan.description)}</p>
           <div class="chips">
             ${plan.units.map((unit) => `<span class="chip">${escapeHtml(unit.name)}</span>`).join("")}
@@ -204,31 +330,45 @@ function renderPlanList(plans) {
     .join("");
 
   return `
-    <p class="intro">Wähle eine Trainingsart, um ihre Einheiten zu sehen.</p>
+    <p class="intro">Wähle eine Trainingsart, um ihre Einheiten zu sehen und sie zu aktivieren.</p>
     ${cards}
   `;
 }
 
-// Detailansicht: Beschreibung und Liste der Einheiten eines Plans
+// Detailansicht: Aktivieren-Knopf und die Einheiten des Plans.
+// Die Einheiten sind sortierbar; ihre Reihenfolge bestimmt auch, welche
+// Einheit auf der Trainingsseite als nächste "dran" ist.
 function renderPlanDetail(plan) {
-  // Jede Zeile ist ein Link zur Einheit
-  const rows = plan.units
+  const isActive = plan.id === Store.getActivePlanId();
+
+  // Jedes Kästchen: links ein Link zur Einheit, rechts der Griff zum Ziehen
+  const cards = plan.units
     .map(
       (unit) => `
-        <li>
-          <a class="list-row list-link" href="#plaene/${plan.id}/${unit.id}">
-            <span class="list-title">${escapeHtml(unit.name)}</span>
-            <span class="list-meta">${exerciseCountText(unit.exerciseIds.length)} ›</span>
+        <li class="exercise-card" data-id="${unit.id}">
+          <a class="card-main" href="#plaene/${plan.id}/${unit.id}">
+            <span class="exercise-name">${escapeHtml(unit.name)}</span>
+            <span class="exercise-meta">${exerciseCountText(unit.exerciseIds.length)} ›</span>
           </a>
+          <span class="drag-handle" aria-label="Zum Verschieben ziehen">≡</span>
         </li>
       `
     )
     .join("");
 
+  const activeControl = isActive
+    ? `<p class="active-note">✓ Das ist dein aktiver Plan.</p>`
+    : `<button class="button-primary button-wide" data-action="activate-plan" data-plan="${plan.id}">
+         Als aktiven Plan wählen
+       </button>`;
+
+  // data-sort sagt dem Drag-and-Drop-Code, WAS hier sortiert wird
   return `
     <p class="intro">${escapeHtml(plan.description)}</p>
+    ${activeControl}
     <h2 class="section-title">Einheiten</h2>
-    <ul class="list">${rows}</ul>
+    <ul class="card-list sortable" data-sort="plan-units">${cards}</ul>
+    <p class="hint">Zum Sortieren eine Einheit am ≡ ziehen.</p>
   `;
 }
 
@@ -259,7 +399,7 @@ function renderUnitDetail(plan, unit) {
   const list =
     exercises.length === 0
       ? `<p class="placeholder">Noch keine Übungen ausgewählt.</p>`
-      : `<ul class="card-list sortable">${cards}</ul>`;
+      : `<ul class="card-list sortable" data-sort="unit-exercises">${cards}</ul>`;
 
   const hint =
     exercises.length > 1 ? `<p class="hint">Zum Sortieren eine Übung am ≡ ziehen.</p>` : "";
@@ -400,7 +540,9 @@ appMain.addEventListener("click", (event) => {
   const exerciseId = button.dataset.id;
   const action = button.dataset.action;
 
-  if (action === "toggle-in-unit") {
+  if (action === "activate-plan") {
+    Store.setActivePlan(button.dataset.plan);
+  } else if (action === "toggle-in-unit") {
     const unit = Store.getUnit(planId, unitId);
     if (unit.exerciseIds.includes(exerciseId)) {
       Store.removeExerciseFromUnit(planId, unitId, exerciseId);
@@ -437,7 +579,8 @@ appMain.addEventListener("pointerdown", (event) => {
   if (!handle) return;
   event.preventDefault(); // Kein Markieren von Text, kein Scrollen
 
-  const item = handle.closest(".exercise-card");
+  // Das Listenelement, zu dem der Griff gehört
+  const item = handle.closest(".sortable > li");
   const itemRect = item.getBoundingClientRect();
   drag = {
     item: item,
@@ -482,10 +625,15 @@ document.addEventListener("pointermove", (event) => {
 // Finger losgelassen (pointerup) oder vom System abgebrochen (pointercancel)
 function endDrag() {
   if (!drag) return;
-  // Die neue Reihenfolge aus den Kästchen ablesen und speichern
+  // Die neue Reihenfolge aus den Kästchen ablesen und speichern.
+  // data-sort an der Liste sagt, ob Übungen oder Einheiten sortiert wurden.
   const orderedIds = [...drag.list.children].map((li) => li.dataset.id);
   const [planId, unitId] = parseHash().params;
-  Store.setUnitExerciseOrder(planId, unitId, orderedIds);
+  if (drag.list.dataset.sort === "unit-exercises") {
+    Store.setUnitExerciseOrder(planId, unitId, orderedIds);
+  } else if (drag.list.dataset.sort === "plan-units") {
+    Store.setUnitOrder(planId, orderedIds);
+  }
   drag = null;
   renderCurrentView();
 }
