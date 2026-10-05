@@ -42,7 +42,7 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
   - Volumen diese Woche: Sätze pro Muskelgruppe (Montag bis heute). Sätze statt kg, weil kg zwischen Muskelgruppen nicht vergleichbar sind
   - Ø Trainingsdauer der letzten 10 Trainings (nur plausible Dauern von 5 Minuten bis 4 Stunden)
 - Darunter „Training starten“ mit den Einheiten des aktiven Plans. Ein begonnenes, nicht beendetes Training ist mit „Läuft“ markiert.
-- Die Einheit unter dem Mauszeiger (bzw. beim Antippen auf dem iPhone) bekommt einen blauen Rahmen.
+- Antippbare Kästchen (Einheiten, Übungen, Pläne) bekommen unter dem Mauszeiger (bzw. beim Antippen der Einheiten auf dem iPhone) einen blauen Rahmen.
 
 ### Training durchführen
 - Die Startseite zeigt die Einheiten des aktiven Plans. Ein Tipp auf eine Einheit (z.B. Push) startet das Training und zeigt ihre Übungen.
@@ -62,16 +62,17 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Sätze, Gewicht, Wiederholungen
 - Ein Tipp auf eine Übung im Training öffnet ihre Seite. Oben stehen die Sätze (Satznummer, kg, Wdh.).
-- Pro Übung standardmäßig 2 Sätze, mit „+ Satz“/„− Satz“ änderbar. Satzanzahl: bewusst eingestellt (+/−) vor der Anzahl vom letzten Mal vor dem Standard 2.
+- Pro Übung standardmäßig ein Aufwärmsatz „W“ und 2 Arbeitssätze, mit „+ Satz“/„− Satz“ änderbar. Eine bewusst eingestellte Satzanzahl (+/−) merkt sich die Übung, sonst gilt der Standard 2.
+- Reihenfolge auf der Übungsseite: „Übung x von y“, Letztes Mal, Vorschlag, Sätze, Pausentimer, Notiz, Verlauf. Kein Knopf „Nächste Übung“.
 - Gewicht und Wiederholungen werden pro Satz erfasst. Das Gewicht ist meist gleich: Ein Gewicht wird in die folgenden Sätze übernommen, solange die leer sind oder denselben Wert hatten. Einzeln bleibt es änderbar. Ein neuer Satz übernimmt die Werte des vorherigen.
 
 ### Pausentimer
-- Auf der Übungsseite unter den Sätzen eine schmale, dezente Zeile: „Pause − 2:00 + Start“.
+- Auf der Übungsseite unter den Sätzen eine schmale, dezente Zeile: „Pause − 2:00 + Start“. Kein Dynamic-Island-Design und kein schwebendes Widget.
 - Der Timer wird manuell gestartet. Standardwert: 2 Minuten, in 15-Sekunden-Schritten änderbar.
 - Jede Übung merkt sich ihre zuletzt eingestellte Pausenzeit.
-- Beim Start poppt oben links in der Ecke ein kleiner schwarzer Kreis auf, mit einem orangen Ring, der wie eine Ladeanzeige abläuft. Sichtbar auf allen Seiten. Bewusst nicht oben mittig, damit die echte Dynamic Island des iPhones frei bleibt.
-- Antippen klappt ihn zu einer Ansicht auf (Übungsname, große Zeit, Anhalten/Fortsetzen, Abbrechen). Ein Tipp daneben klappt sie zu.
-- Am Ende ertönt ein kurzer Ton, das Widget klappt auf und zeigt „Pause vorbei“ (Nochmal / Fertig).
+- Nach dem Start füllt sich die Zeile selbst mit einem orangen Balken, der bis zum Ende der Pause nach links schrumpft; dazu Restzeit, Anhalten/Fortsetzen und Abbrechen.
+- Der Timer läuft beim Wechsel der Übung weiter; jede Übungsseite zeigt ihn (bei einer anderen Übung mit deren Namen).
+- Am Ende ertönt ein kurzer Ton, die Zeile wird zart grün: „Pause vorbei“ mit „Nochmal“ und ✕.
 - Die Zeit über Zeitstempel berechnen (nicht über einen reinen Zähler), damit der Timer auch korrekt bleibt, wenn die App kurz im Hintergrund war.
 - Die verwendete Pausenzeit wird mit der Übung gespeichert.
 
@@ -87,10 +88,8 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 
 ### Verlauf
 - Auf der Übungsseite (im Training) unter Sätzen und Timer ein Bereich „Verlauf“.
-- Umschalter „Gewicht | Volumen“ (nie beide in einem Diagramm mit zwei y-Achsen):
-  - Gewicht: höchstes Gewicht pro Training als Linie
-  - Volumen: Gewicht × Wiederholungen aller Sätze pro Training als Balken; bei Übungen ohne Gewicht die Summe der Wiederholungen
-- Antippen zeigt den Wert des nächstgelegenen Trainings. Darunter Kennzahlen (Höchstes Gewicht, Veränderung seit Beginn, Anzahl Trainings) und die letzten 5 Trainings als Liste.
+- Ein gestapeltes Balkendiagramm (keine Tabelle, kein Umschalter): ein Balken pro Training (höchstens die letzten 8), aufgeteilt in die einzelnen Arbeitssätze (Satz 1 unten). Höhe = Volumen (Gewicht × Wdh.), im Abschnitt steht die Wiederholungszahl; bei Übungen ohne Gewicht Höhe = Wiederholungen. Über dem neuesten Balken das Gewicht.
+- Antippen zeigt die Sätze des nächstgelegenen Trainings. Darunter Kennzahlen: Rekord (mit Pokal), Veränderung seit Beginn, Anzahl Trainings.
 - Es zählen nur abgehakte Übungen mit eingetragenen Wiederholungen; übersprungene nie.
 
 ### Daten sichern
@@ -105,7 +104,8 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
   - Alle Farben und Maße als Variablen ganz oben (Apples Systemfarben für hell und dunkel: Hintergrund #f2f2f7 / #000, Karten weiß / #1c1c1e, Systemblau #007aff / #0a84ff, Text in drei Abstufungen). Regeln benutzen nur diese Variablen.
   - Feste Bedeutung der Farben: Blau = antippbar, Grün = erledigt/läuft/an, Orange = Pausentimer, Gold = Erfolge (Streak, Rekorde), Eisblau/Lila nur für die Streak.
   - Eine Abrundung für Listen, Karten und Knöpfe (12px), eine größere für Widgets (20px).
-  - Listen als gruppierte iOS-Listen: ein abgerundeter Block, Zeilen durch eingerückte Haarlinien getrennt, grauer Pfeil › rechts; Überschriften klein, grau, in Großbuchstaben.
+  - Listen aus einzelnen, abgerundeten Kästchen: kleiner Abstand (6px) innerhalb einer Liste (z.B. Übungen in Pull), größerer Abstand (12px) zwischen den Einheiten auf der Startseite (Push, Pull, Legs); grauer Pfeil › rechts; Überschriften klein, grau, in Großbuchstaben.
+  - Wenig Text: keine Wiederholung des Plannamens innerhalb einer Einheit, keine Erklärtexte, wo sich die Bedienung selbst erklärt (z.B. Sortier-Griff, Häkchen).
   - Drei Knopfarten: gefüllt (Hauptaktion), getönt (zarter Farbton, z.B. „+ Satz“), Text.
   - Entfernen als graues ⓧ, Auswahl als blaues Häkchen rechts, Abhaken als Kreis links (wie Erinnerungen).
   - Navigationsleiste wie iOS: Zurück-Link nennt das Ziel („‹ Pläne“), großer Titel im Inhalt, beim Scrollen kleiner Titel in einer verschwommenen Leiste. Lange Titel werden kleiner, deutsch getrennt und auf zwei Zeilen begrenzt.
@@ -161,14 +161,14 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 2. ✅ **Übungen bearbeiten** (erledigt, Seite `#uebungen/<id>`): Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
 3. ✅ **Notiz pro Übung** (erledigt): kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
 4. ✅ **Aufwärmsatz** (erledigt): Jede Übung startet standardmäßig mit einem Aufwärmsatz „W“ vor den Arbeitssätzen, entfernbar (die Übung merkt sich das). Vorgeschlagenes Gewicht: etwa 50 % des ersten Arbeitssatzes, gerundet auf 2,5 kg (unter 20 kg auf 1 kg); zieht mit, solange er nicht bewusst geändert wurde. Ein-/Ausschalten auch auf der Seite „Übung bearbeiten“. Gespeichert als Satz mit `warmup: true`; `workingSets()` filtert ihn überall heraus. Aufwärmsätze zählen nicht für Volumen, Rekorde, Vorschläge, „Letztes Mal“.
-5. ✅ **Progressive Overload (doppelte Progression)** (erledigt, Logik in `js/progress.js`): Pro Übung Wiederholungsbereich (Standard 8–12) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
+5. ✅ **Progressive Overload (doppelte Progression)** (erledigt, Logik in `js/progress.js`): Pro Übung Wiederholungsbereich (Standard 6–10) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg; z.B. Maschinen mit 5er-Platten auf 5 kg stellen), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
    - Alle Arbeitssätze am oberen Ende → „Vorschlag: +2,5 kg“ mit Knopf zum Übernehmen, Ziel wieder unteres Ende.
    - Sonst → gleiches Gewicht, Ziel 1 Wiederholung mehr (als grauer Hinweis in den Feldern).
-   - Zweimal hintereinander unter dem Bereich (erster Arbeitssatz) → „… kg probieren?“ (etwa 10 % weniger).
+   - Zweimal hintereinander unter dem Bereich (erster Arbeitssatz) → „… kg probieren?“ (etwa 10 % weniger, in den Schritten der Übung gerundet).
    - Ohne Gewicht (z.B. Klimmzüge): nur Wiederholungen; am oberen Ende Hinweis auf Zusatzgewicht.
    - Bereich und Steigerung auf der Seite „Übung bearbeiten“ (Steigerung in Stufen 0,5/1/1,25/2/2,5/5/10 kg).
    Grundlage: Gewicht oder Wiederholungen steigern wirkt für Muskelaufbau etwa gleich (Plotkin et al. 2022); doppelte Progression kombiniert beides.
-6. ✅ **Rekorde** (erledigt): kompakt direkt auf der Übungsseite („🏆 Rekord: 102,5 kg × 5“), keine eigene Seite. Bester Satz = höchstes Gewicht, bei Gleichstand mehr Wiederholungen. Beim Abhaken mit neuem Rekord: Einblendung „Neuer Rekord!“ und Etikett „Rekord“ in der Liste. Pokal und Rekord-Etikett in Gold (Gold = Erfolge: Streak und Rekorde).
+6. ✅ **Rekorde** (erledigt): kompakt im Verlauf der Übung bei den Kennzahlen unter dem Diagramm („🏆 102,5 × 5“), keine eigene Seite. Bester Satz = höchstes Gewicht, bei Gleichstand mehr Wiederholungen. Beim Abhaken mit neuem Rekord: Einblendung „Neuer Rekord!“ und Etikett „Rekord“ in der Liste. Pokal und Rekord-Etikett in Gold (Gold = Erfolge: Streak und Rekorde).
 7. ✅ **Trainingsprotokoll** (erledigt, Seite `#einstellungen/tag/<datum>`): In den Einstellungen im Kalender einen Trainingstag antippen → Übersicht dieses Trainings (Dauer, Übungen, Sätze, bewegte kg, Rekorde) und die Übungen mit Sätzen. Dort Werte ändern, Übungen entfernen, Training löschen. Die Seite bleibt übersichtlich: im Normalzustand eine Zeile pro Übung, Eingabefelder erst im Modus „Bearbeiten“. Beendete Trainings speichern zusätzlich `planName`/`unitName`, damit das Protokoll auch nach Umbenennen oder Löschen lesbar bleibt. Aufgeklappte Monate bleiben beim Zurückkommen offen.
 8. ✅ **Eigene Pläne** (erledigt): In „Pläne“ eigene Pläne anlegen (Name), Trainingstage hinzufügen, umbenennen, sortieren, löschen. Trainingstage auch bei den vorgegebenen Plänen ergänzen/umbenennen. Namen werden über das eingebaute Eingabefenster (`prompt`) abgefragt. Gelöschte Pläne/Trainingstage lassen gespeicherte Trainings unberührt.
 

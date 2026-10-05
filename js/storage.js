@@ -34,8 +34,8 @@ const DEFAULT_REST_SECONDS = 120;
 const DEFAULT_SET_COUNT = 2;
 
 // Standard-Wiederholungsbereich für die doppelte Progression (siehe CLAUDE.md)
-const DEFAULT_REP_MIN = 8;
-const DEFAULT_REP_MAX = 12;
+const DEFAULT_REP_MIN = 6;
+const DEFAULT_REP_MAX = 10;
 
 // Muskelgruppen, bei denen die Standard-Steigerung 5 kg statt 2,5 kg ist
 const LOWER_BODY_GROUPS = ["beine", "gesaess", "waden"];
@@ -875,9 +875,8 @@ function workoutEntry(exerciseId) {
   if (!currentWorkout.exercises[exerciseId]) {
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     const last = Store.getLastPerformance(exerciseId);
-    // Satzanzahl: bewusst eingestellt (+/− Satz) > wie letztes Mal > Standard 2
-    const count =
-      exercise && exercise.setCount ? exercise.setCount : last ? last.sets.length : DEFAULT_SET_COUNT;
+    // Satzanzahl: bewusst eingestellt (+/− Satz), sonst Standard 2
+    const count = exercise && exercise.setCount ? exercise.setCount : DEFAULT_SET_COUNT;
     // Array.from({ length: 2 }, ...) erzeugt eine Liste mit 2 Einträgen
     const sets = Array.from({ length: count }, (_, i) => {
       // Gab es letztes Mal weniger Sätze, nehmen wir das Gewicht des letzten

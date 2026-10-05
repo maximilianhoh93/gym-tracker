@@ -334,36 +334,33 @@ body.scrolled .nav-title {
 /* ===== 4. Gruppierte Listen =====
    Ein abgerundeter weißer Block, die Zeilen getrennt durch hauchdünne
    Linien, die links eingerückt beginnen (wie bei iOS). */
+/* Listen bestehen aus einzelnen, abgerundeten Kästchen mit kleinem Abstand
+   (z.B. die Übungen innerhalb von Pull). Zwischen den Einheiten auf der
+   Startseite (Push, Pull, Legs) ist der Abstand größer. */
 .card-list {
   position: relative; /* Bezugspunkt für das Verschieben beim Ziehen */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Ecken der ersten und letzten Zeile mitrunden */
   list-style: none;
-  background: var(--surface);
-  border-radius: var(--radius);
+}
+
+.card-list.unit-list {
+  gap: 12px;
 }
 
 .card-list > li {
   position: relative;
+  overflow: hidden; /* Inhalt an die runden Ecken anpassen */
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-/* Trennlinie über jeder Zeile außer der ersten. ::before ist ein
-   "unsichtbares Extra-Element", das wir als Linie zeichnen. */
-.card-list > li + li::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: var(--separator-inset, 16px);
-  z-index: 1;
-  height: 0.5px;
-  background: var(--separator);
-}
-
-/* Listen mit Kreis links: Linie beginnt erst nach dem Kreis */
-.card-list:has(.workout-card) {
-  --separator-inset: 60px;
+.card-list > li > .exercise-card,
+.card-list > li.exercise-card {
+  border-radius: var(--radius);
 }
 
 /* Eine Zeile in einer Liste */
@@ -472,6 +469,7 @@ body.scrolled .nav-title {
 /* Die Zeile, die gerade gezogen wird, "schwebt" über den anderen */
 .exercise-card.dragging {
   z-index: 5;
+  overflow: visible;
   border-radius: var(--radius);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   cursor: grabbing;
@@ -578,38 +576,6 @@ body.scrolled .nav-title {
   text-align: center;
 }
 
-/* Einzelne Zeile mit Pfeil, z.B. "Nächste Übung ... ›" */
-.nav-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 50px;
-  margin-top: 16px;
-  padding: 0 12px 0 16px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  text-decoration: none;
-}
-
-.nav-row-label {
-  flex-shrink: 0;
-}
-
-.nav-row-value {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-muted);
-  text-align: right;
-  white-space: nowrap;
-  text-overflow: ellipsis; /* Zu langen Namen mit "…" abschneiden */
-}
-
-.nav-row:not(:has(.nav-row-value)) .nav-row-label {
-  flex: 1; /* Ohne Wert rechts: Text nimmt den Platz ein */
-}
-
 /* ===== 5. Knöpfe =====
    Drei Arten wie bei Apple:
    - gefüllt (button-primary): die eine Hauptaktion
@@ -697,8 +663,7 @@ body.scrolled .nav-title {
 .pill-button:active,
 .text-button:active,
 .step-button:active,
-.card-link:active,
-.nav-row:active {
+.card-link:active {
   opacity: 0.6;
 }
 
@@ -708,38 +673,8 @@ body.scrolled .nav-title {
   cursor: default;
 }
 
-/* Umschalter "Gewicht | Volumen" im Apple-Stil */
-.segmented {
-  display: flex;
-  padding: 2px;
-  border-radius: 9px;
-  background: var(--gray-button);
-}
-
-.segmented button {
-  flex: 1;
-  height: 30px;
-  border: none;
-  border-radius: 7px;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.segmented button.selected {
-  background: var(--surface);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  font-weight: 600;
-}
-
 @media (prefers-color-scheme: dark) {
-  .segmented button.selected {
-    background: #636366; /* In iOS ist der gewählte Teil im Dunkeln grau */
   }
-}
 
 /* Ein/Aus-Schalter im iOS-Stil: Pille mit weißem Kreis, der zur Seite gleitet */
 .switch {
@@ -1001,217 +936,6 @@ body.scrolled .nav-title {
   color: var(--text-muted);
 }
 
-/* ===== Timer-Widget oben links ===== */
-/* Kompakt ein kleiner schwarzer Kreis in der Ecke, aufgeklappt eine
-   breite Ansicht. Es ist dasselbe Element; beim Aufklappen ändern sich nur
-   Breite, Höhe und Rundung, das sieht aus wie ein "Aufziehen". */
-.island {
-  position: fixed;
-  /* Unter der Statusleiste bzw. Notch, oben links in der Ecke */
-  top: calc(env(safe-area-inset-top) + 10px);
-  left: 12px;
-  z-index: 50;
-  width: 44px;
-  height: 44px;
-  overflow: hidden;
-  border-radius: 22px;
-  background: #000000; /* Immer schwarz, auch im hellen Modus */
-  color: #ffffff;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  transition:
-    width 0.35s cubic-bezier(0.3, 1.3, 0.5, 1),
-    height 0.35s cubic-bezier(0.3, 1.3, 0.5, 1),
-    border-radius 0.35s;
-}
-
-/* Aufgeklappt: fast so breit wie der Bildschirm */
-.island.expanded {
-  width: min(calc(100% - 24px), 400px);
-  height: 84px;
-  border-radius: 42px;
-}
-
-/* Aufpoppen beim ersten Erscheinen: aus dem Nichts wachsen, leicht nachfedern */
-.island.pop {
-  animation: island-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
-}
-
-@keyframes island-pop {
-  from {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Solange der Kreis sichtbar ist, rückt der Zurück-Link nach rechts */
-body.has-island .back-link {
-  margin-left: 48px;
-}
-
-/* Kompakt: nur der Ring, mittig im Kreis */
-.island-compact {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-.island.expanded .island-compact {
-  display: none;
-}
-
-.mini-ring {
-  width: 30px;
-  height: 30px;
-  transform: rotate(-90deg); /* Fortschritt beginnt oben */
-}
-
-.mini-track,
-.mini-progress {
-  fill: none;
-  stroke-width: 3;
-}
-
-.mini-track {
-  stroke: rgba(255, 159, 10, 0.3);
-}
-
-.mini-progress {
-  stroke: #ff9f0a; /* Apples Orange (dunkle Variante, da Hintergrund schwarz) */
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.25s linear;
-}
-
-.island-time {
-  font-size: 16px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #ff9f0a;
-}
-
-.island.paused .island-time {
-  opacity: 0.5;
-}
-
-/* Aufgeklappt: links Name und große Zeit, rechts zwei runde Knöpfe */
-.island-expanded {
-  display: none;
-  align-items: center;
-  gap: 12px;
-  height: 84px;
-  padding: 0 14px 0 24px;
-}
-
-.island.expanded .island-expanded {
-  display: flex;
-}
-
-.island-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  color: inherit;
-  text-decoration: none;
-}
-
-.island-caption {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis; /* Zu langen Namen mit "…" abschneiden */
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.island-big {
-  font-size: 32px;
-  font-weight: 300;
-  line-height: 1.15;
-  white-space: nowrap;
-}
-
-.island-big .island-time {
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-.island.done .island-big {
-  font-size: 24px;
-  font-weight: 600;
-  color: #ff9f0a;
-}
-
-.island-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.island-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50px;
-  height: 50px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-/* Gefüllte Symbole (Pause, Weiter) übernehmen die Schriftfarbe */
-.island-button svg {
-  width: 22px;
-  height: 22px;
-  fill: currentColor;
-}
-
-/* Linien-Symbole (Nochmal, Schließen) */
-.island-button svg.stroke {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.island-button:active {
-  opacity: 0.6;
-}
-
-.island-button.gray {
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-}
-
-.island-button.orange {
-  background: rgba(255, 159, 10, 0.3);
-  color: #ff9f0a;
-}
-
-.island-button.green {
-  background: rgba(48, 209, 88, 0.3);
-  color: #30d158;
-  font-size: 26px; /* Das Zeichen ↻ ist von Natur aus klein */
-}
-
-/* Ist die Pause vorbei, pulsiert die Insel sanft, bis man reagiert */
-.island.done {
-  animation: island-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes island-pulse {
-  0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); }
-  50%      { box-shadow: 0 0 0 4px rgba(255, 159, 10, 0.55); }
-}
 
 
 /* ===== Widgets auf der Startseite ===== */
@@ -1565,43 +1289,6 @@ body.has-island .back-link {
 .stat-label {
   font-size: 12px;
   color: var(--text-muted);
-}
-
-/* Liste der letzten Trainings: Datum | Sätze | Volumen */
-/* Als gruppierte Liste wie überall sonst */
-.history-list {
-  margin: 12px 0 0;
-  padding: 0;
-  overflow: hidden;
-  list-style: none;
-  background: var(--surface);
-  border-radius: var(--radius);
-}
-
-.history-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  gap: 8px;
-  padding: 12px 16px;
-  font-size: 15px;
-}
-
-/* Trennlinie, eingerückt wie in den anderen Listen */
-.history-row + .history-row::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 16px;
-  height: 0.5px;
-  background: var(--separator);
-}
-
-.history-date,
-.history-volume {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 
@@ -1973,18 +1660,17 @@ body.has-island .back-link {
     color: var(--text);
   }
 
-  /* Zeilen und Karten: leicht grau hinterlegt */
+  /* Antippbare Kästchen: blauer Rahmen unter dem Mauszeiger.
+     inset = der Rahmen liegt innen, das Kästchen wird nicht größer. */
   .card-link:hover,
   .pick-card:hover,
-  .exercise-card:has(.card-main:hover),
-  .nav-row:hover,
-  .month-item summary:hover {
-    background: color-mix(in srgb, var(--surface) 94%, var(--text));
+  .unit-card:hover,
+  .exercise-card:has(.card-main:hover) {
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
 
-  /* Einheiten auf der Startseite: blauer Rahmen */
-  .unit-card:hover {
-    box-shadow: inset 0 0 0 2px var(--accent);
+  .month-item summary:hover {
+    background: color-mix(in srgb, var(--surface) 94%, var(--text));
   }
 
   /* Getönte Knöpfe: etwas kräftiger */
@@ -2179,7 +1865,7 @@ body.has-island .back-link {
   gap: 8px;
   width: 100%;
   min-height: 40px;
-  margin-bottom: 10px;
+  margin-top: 12px;
   padding: 8px 14px;
   border: none;
   border-radius: var(--radius);
@@ -2217,7 +1903,7 @@ body.has-island .back-link {
 }
 
 .note-box {
-  margin-bottom: 10px;
+  margin-top: 12px;
 }
 
 .note-box .text-button {
@@ -2487,4 +2173,108 @@ a.cal-day:active {
   width: auto;
   margin: 0;
   padding: 0 12px;
+}
+
+/* ===== Timer-Zeile mit Balken (läuft / abgelaufen) ===== */
+.timer-row {
+  position: relative; /* Bezugspunkt für den Balken im Hintergrund */
+  overflow: hidden;
+}
+
+/* Alles in der Zeile liegt über dem Balken */
+.timer-row > *:not(.timer-bar-fill) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Der Balken: füllt die Zeile anfangs ganz und schrumpft bis zum Ende der
+   Pause nach links. Die Breite setzt app.js mehrmals pro Sekunde. */
+.timer-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: color-mix(in srgb, var(--orange) 22%, transparent);
+  transition: width 0.25s linear; /* gleitet zwischen den Aktualisierungen */
+}
+
+.timer-row.running .timer-row-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Restzeit groß und orange */
+.timer-time {
+  min-width: 52px;
+  color: var(--orange);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Runde Knöpfe in der Timer-Zeile (Anhalten, Fortsetzen, Abbrechen) */
+.timer-icon-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--gray-button);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.timer-icon-button svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.timer-icon-button svg.stroke {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.timer-icon-button:active {
+  opacity: 0.6;
+}
+
+/* Pause vorbei: Zeile zart grün, Text grün */
+.timer-row.done {
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+}
+
+.timer-row-title.done {
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* ===== Verlauf: Zahlen in den Balken-Abschnitten ===== */
+.segment-label {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Pokal vor dem Rekord in den Kennzahlen */
+.stat-value .row-icon {
+  width: 15px;
+  height: 15px;
+  margin-right: 3px;
+  vertical-align: -2px;
+}
+
+@media (hover: hover) {
+  .timer-icon-button:hover {
+    background: var(--fill-strong);
+  }
 }

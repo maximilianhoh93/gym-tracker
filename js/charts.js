@@ -16,22 +16,6 @@
 
 // ===== Berechnungen =====
 
-// Höchstes Gewicht eines Trainings, oder null bei Übungen ohne Gewicht
-function sessionWeight(sets) {
-  const weights = sets.map((set) => set.weight).filter((w) => w !== null);
-  return weights.length > 0 ? Math.max(...weights) : null;
-}
-
-// Volumen eines Trainings: Summe aus Gewicht × Wiederholungen.
-// Hat kein einziger Satz ein Gewicht (z.B. Klimmzüge), zählen die
-// Wiederholungen. reduce() addiert alle Einträge einer Liste auf.
-function sessionVolume(sets) {
-  if (sets.every((set) => set.weight === null)) {
-    return sets.reduce((sum, set) => sum + set.reps, 0);
-  }
-  return sets.reduce((sum, set) => sum + (set.weight || 0) * set.reps, 0);
-}
-
 // Montag 0:00 Uhr der aktuellen Woche
 function startOfWeek() {
   const date = new Date();
@@ -484,14 +468,11 @@ document.addEventListener("click", (event) => {
 });
 
 // ===== Verlauf einer Übung =====
-
-// Werte für das Diagramm: [{ date, value }]
-// metric "weight" = höchstes Gewicht, "volume" = Volumen
-function historyPoints(history, metric) {
-  return history
-    .map((h) => ({ date: h.date, value: metric === "weight" ? sessionWeight(h.sets) : sessionVolume(h.sets) }))
-    .filter((p) => p.value !== null);
-}
+// Ein gestapeltes Balkendiagramm: ein Balken pro Training, ein Abschnitt pro
+// Satz (Satz 1 unten). Die Höhe eines Abschnitts ist das Volumen dieses
+// Satzes (Gewicht × Wiederholungen), darin steht die Wiederholungszahl.
+// Bei Übungen ohne Gewicht ist die Höhe die Zahl der Wiederholungen.
+// So sieht man auf einen Blick, wie viel man in jedem Satz geschafft hat.
 
 // Ein "glatter" Abstand für Hilfslinien, sodass es etwa 2–4 Linien gibt:
 // 1, 2, 2,5 oder 5 mal einer Zehnerpotenz (z.B. 5, 10, 25, 50, 250, 500).
@@ -503,91 +484,80 @@ function niceStep(range) {
   return nice * power;
 }
 
-// Diagramm als SVG. kind "line" (für Gewicht) oder "bars" (für Volumen).
-// Gezeigt werden höchstens die letzten 12 Trainings, damit es lesbar bleibt.
-function renderHistoryChart(points, kind, unit) {
-  points = points.slice(-12);
+// Diagramm als SVG. history = Trainings der Übung (älteste zuerst)
+function renderSetsChart(history, bodyweight) {
+  const sessions = history.slice(-8); // höchstens 8 Balken, damit Zahlen Platz haben
+  const value = (set) => (bodyweight ? set.reps : (set.weight || 0) * set.reps);
+  const totals = sessions.map((h) => h.sets.reduce((sum, set) => sum + value(set), 0));
 
   // Maße in "SVG-Einheiten". Das SVG wird auf die Bildschirmbreite skaliert.
   const width = 340;
-  const height = 170;
-  const pad = { top: 22, right: 14, bottom: 24, left: 40 };
+  const height = 190;
+  const pad = { top: 24, right: 10, bottom: 24, left: 40 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
 
-  // y-Bereich: bei Balken ab 0 (Länge muss ehrlich sein), bei der Linie
-  // etwas Luft um den kleinsten und größten Wert. Danach auf "glatte"
-  // Schritte runden, damit die Hilfslinien z.B. bei 50, 60, 70 liegen.
-  const values = points.map((p) => p.value);
-  let min = kind === "bars" ? 0 : Math.min(...values);
-  let max = Math.max(...values);
-  if (kind === "line") {
-    const room = Math.max((max - min) * 0.15, max * 0.05, 1);
-    min = Math.max(0, min - room);
-    max = max + room;
-  }
-  const step = niceStep(max - min);
-  min = Math.floor(min / step) * step;
-  max = Math.ceil(max / step) * step;
-  if (max === min) max = min + step;
+  // y-Achse ab 0 (Balkenlänge muss ehrlich sein), oben auf glatte Schritte
+  const step = niceStep(Math.max(...totals));
+  const max = Math.max(step, Math.ceil(Math.max(...totals) / step) * step);
+  const y = (v) => pad.top + plotH - (v / max) * plotH;
 
-  // Umrechnung Wert -> Position
-  const x = (i) =>
-    points.length === 1 ? pad.left + plotW / 2 : pad.left + (i / (points.length - 1)) * plotW;
-  const y = (value) => pad.top + plotH - ((value - min) / (max - min)) * plotH;
-
-  // Dezente Hilfslinien mit Beschriftung, eine pro Schritt
+  // Hilfslinien mit Beschriftung
   let grid = "";
-  for (let value = min; value <= max + step / 2; value += step) {
-    const gy = y(value);
-    grid += `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${gy}" y2="${gy}"></line>
-             <text class="axis-label" x="${pad.left - 6}" y="${gy + 4}" text-anchor="end">${formatGerman(value)}</text>`;
+  for (let v = 0; v <= max + step / 2; v += step) {
+    grid += `<line class="grid-line" x1="${pad.left}" x2="${width - pad.right}" y1="${y(v)}" y2="${y(v)}"></line>
+             <text class="axis-label" x="${pad.left - 6}" y="${y(v) + 4}" text-anchor="end">${formatGerman(v)}</text>`;
   }
+
+  // Balken: Breite abhängig von der Anzahl
+  const slot = plotW / Math.max(sessions.length, 1);
+  const barW = Math.min(38, slot - 10);
+  const gap = 2; // schmale Lücke zwischen den Sätzen
+  let bars = "";
+  const tooltipData = [];
+
+  sessions.forEach((session, i) => {
+    const cx = pad.left + slot * i + slot / 2;
+    let base = 0; // bisher gestapelte Höhe (in Werten)
+    session.sets.forEach((set, k) => {
+      const v = value(set);
+      const top = y(base + v);
+      const bottom = y(base);
+      const isTop = k === session.sets.length - 1;
+      // Jeder Abschnitt etwas kürzer, damit eine Lücke zum nächsten bleibt
+      const h = Math.max(1, bottom - top - (isTop ? 0 : gap));
+      bars += `<rect class="chart-bar" x="${cx - barW / 2}" y="${top + (isTop ? 0 : gap)}" width="${barW}" height="${h}" rx="${isTop ? 4 : 1.5}"></rect>`;
+      // Wiederholungszahl im Abschnitt, nur wenn sie hineinpasst
+      if (h >= 13 && barW >= 14) {
+        bars += `<text class="segment-label" x="${cx}" y="${top + (isTop ? 0 : gap) + h / 2 + 4}" text-anchor="middle">${set.reps}</text>`;
+      }
+      base += v;
+    });
+
+    const weight = topWeight(session.sets);
+    const setsText = formatSets(session.sets);
+    tooltipData.push({ x: cx, text: `${shortDate(session.date)}: ${setsText}` });
+
+    // Über dem neuesten Balken das Gewicht (bzw. die Summe der Wdh.)
+    if (i === sessions.length - 1) {
+      const label = bodyweight ? `${totals[i]} Wdh.` : weight !== null ? `${formatNumber(weight)} kg` : "";
+      bars += `<text class="value-label" x="${cx}" y="${y(totals[i]) - 7}" text-anchor="middle">${label}</text>`;
+    }
+  });
 
   // x-Achse: erstes und letztes Datum
+  const firstX = pad.left + slot / 2;
+  const lastX = pad.left + slot * (sessions.length - 1) + slot / 2;
   const xLabels =
-    `<text class="axis-label" x="${x(0)}" y="${height - 6}" text-anchor="${points.length === 1 ? "middle" : "start"}">${shortDate(points[0].date)}</text>` +
-    (points.length > 1
-      ? `<text class="axis-label" x="${x(points.length - 1)}" y="${height - 6}" text-anchor="end">${shortDate(points[points.length - 1].date)}</text>`
+    `<text class="axis-label" x="${firstX}" y="${height - 6}" text-anchor="middle">${shortDate(sessions[0].date)}</text>` +
+    (sessions.length > 1
+      ? `<text class="axis-label" x="${lastX}" y="${height - 6}" text-anchor="middle">${shortDate(sessions[sessions.length - 1].date)}</text>`
       : "");
 
-  let marks = "";
-  if (kind === "line") {
-    // Eine Linie durch alle Punkte: "M x,y" = Stift ansetzen, "L x,y" = Linie ziehen
-    const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
-    marks += `<path class="chart-line" d="${path}"></path>`;
-    marks += points.map((p, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(p.value)}" r="4"></circle>`).join("");
-  } else {
-    // Balken: Breite abhängig von der Anzahl, mit Lücke dazwischen
-    const slot = plotW / points.length;
-    const barW = Math.min(28, slot - 4);
-    marks += points
-      .map((p, i) => {
-        const cx = points.length === 1 ? pad.left + plotW / 2 : pad.left + slot * i + slot / 2;
-        const top = y(p.value);
-        const h = pad.top + plotH - top;
-        // Oben abgerundet (rx), unten am Boden "verankert"
-        return `<rect class="chart-bar" x="${cx - barW / 2}" y="${top}" width="${barW}" height="${Math.max(h, 1)}" rx="4"></rect>`;
-      })
-      .join("");
-  }
-
-  // Den letzten Wert direkt am Diagramm beschriften
-  const lastIndex = points.length - 1;
-  const lastX = kind === "line" || points.length === 1 ? x(lastIndex) : pad.left + (plotW / points.length) * (lastIndex + 0.5);
-  const lastLabel = `<text class="value-label" x="${lastX}" y="${y(points[lastIndex].value) - 9}" text-anchor="${points.length > 1 ? "end" : "middle"}">${formatGerman(points[lastIndex].value)} ${unit}</text>`;
-
-  // Die Werte stecken zusätzlich als data-Attribut am Diagramm, damit
-  // beim Antippen der nächstgelegene Punkt angezeigt werden kann
-  const data = points.map((p, i) => ({
-    x: kind === "line" || points.length === 1 ? x(i) : pad.left + (plotW / points.length) * (i + 0.5),
-    text: `${shortDate(p.date)}: ${formatGerman(p.value)} ${unit}`,
-  }));
-
   return `
-    <div class="chart" data-points='${JSON.stringify(data)}' data-width="${width}">
-      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Verlauf, letzter Wert ${formatGerman(points[lastIndex].value)} ${unit}">
-        ${grid}${marks}${xLabels}${lastLabel}
+    <div class="chart" data-points='${JSON.stringify(tooltipData).replace(/'/g, "&#39;")}' data-width="${width}">
+      <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Verlauf der letzten ${sessions.length} Trainings">
+        ${grid}${bars}${xLabels}
         <line class="crosshair" x1="0" x2="0" y1="${pad.top}" y2="${pad.top + plotH}" visibility="hidden"></line>
       </svg>
       <div class="chart-tooltip" hidden></div>
@@ -633,91 +603,51 @@ document.addEventListener("pointerdown", (event) => {
   document.querySelectorAll(".crosshair").forEach((c) => c.setAttribute("visibility", "hidden"));
 });
 
-// Der ganze Verlaufsbereich einer Übung: Umschalter, Diagramm,
-// Kennzahlen und die Liste der letzten Trainings
-function renderExerciseHistory(exerciseId, metric) {
+// Der Verlaufsbereich einer Übung: Diagramm und Kennzahlen darunter
+// (Rekord, Veränderung seit Beginn, Anzahl Trainings)
+function renderExerciseHistory(exerciseId) {
   const history = Store.getExerciseHistory(exerciseId);
   if (history.length === 0) {
     return `
       <h2 class="section-title">Verlauf</h2>
-      <p class="placeholder">Noch kein Verlauf. Hake die Übung nach deinen Sätzen ab und beende das Training, dann erscheint hier deine Entwicklung.</p>
+      <p class="placeholder">Noch kein Verlauf. Hake die Übung nach deinen Sätzen ab und beende das Training.</p>
     `;
   }
 
-  // Ohne Gewichte (z.B. Klimmzüge) gibt es nur das Volumen in Wiederholungen
-  const bodyweight = history.every((h) => sessionWeight(h.sets) === null);
-  if (bodyweight) metric = "volume";
-  const volumeUnit = bodyweight ? "Wdh." : "kg";
+  // Ohne Gewichte (z.B. Klimmzüge) zählen nur Wiederholungen
+  const bodyweight = history.every((h) => topWeight(h.sets) === null);
 
-  const points = historyPoints(history, metric);
-  const chart =
-    metric === "weight"
-      ? renderHistoryChart(points, "line", "kg")
-      : renderHistoryChart(points, "bars", volumeUnit);
+  // Rekord: bester Satz aller Trainings (siehe progress.js)
+  const record = exerciseRecord(exerciseId);
+  const recordText = !record
+    ? "–"
+    : record.weight !== null
+      ? `${formatNumber(record.weight)} × ${record.reps}`
+      : `${record.reps}`;
 
-  // Kennzahlen: bestes Gewicht bzw. Volumen und Veränderung seit Beginn
-  const weights = historyPoints(history, "weight").map((p) => p.value);
-  const volumes = historyPoints(history, "volume").map((p) => p.value);
-  // Veränderung vom ersten zum letzten Training, mit Einheit.
-  // Bei nur einem Training gibt es keine Veränderung: nur "–" ohne Einheit.
-  const change = (list, unit) => {
-    if (list.length < 2) return "–";
-    const diff = list[list.length - 1] - list[0];
-    return (diff > 0 ? "+" : diff < 0 ? "−" : "±") + formatGerman(Math.abs(diff)) + " " + unit;
-  };
-  const stats = bodyweight
-    ? [
-        ["Bestes Volumen", `${formatGerman(Math.max(...volumes))} Wdh.`],
-        ["Seit Beginn", change(volumes, "Wdh.")],
-        [history.length === 1 ? "Training" : "Trainings", history.length],
-      ]
-    : [
-        ["Höchstes Gewicht", `${formatGerman(Math.max(...weights))} kg`],
-        ["Seit Beginn", change(weights, "kg")],
-        [history.length === 1 ? "Training" : "Trainings", history.length],
-      ];
+  // Veränderung seit Beginn: Gewicht (bzw. beste Wdh.) erstes vs. letztes Training
+  const measure = (sets) => (bodyweight ? Math.max(...sets.map((s) => s.reps)) : topWeight(sets));
+  let change = "–";
+  if (history.length >= 2) {
+    const diff = measure(history[history.length - 1].sets) - measure(history[0].sets);
+    const unit = bodyweight ? "Wdh." : "kg";
+    change = (diff > 0 ? "+" : diff < 0 ? "−" : "±") + formatGerman(Math.abs(diff)) + " " + unit;
+  }
 
-  // Die letzten 5 Trainings als Liste, neuestes zuerst (die "Tabelle" zum Diagramm)
-  const rows = history
-    .slice(-5)
-    .reverse()
-    .map(
-      (h) => `
-        <li class="history-row">
-          <span class="history-date">${shortDate(h.date)}</span>
-          <span class="history-sets">${formatSets(h.sets)}</span>
-          <span class="history-volume">${formatGerman(sessionVolume(h.sets))} ${volumeUnit}</span>
-        </li>`
-    )
-    .join("");
-
-  // Umschalter nur, wenn es Gewichte gibt
-  const toggle = bodyweight
-    ? ""
-    : `<div class="segmented" role="tablist">
-         <button class="${metric === "weight" ? "selected" : ""}" data-action="history-metric" data-metric="weight"
-           role="tab" aria-selected="${metric === "weight"}">Gewicht</button>
-         <button class="${metric === "volume" ? "selected" : ""}" data-action="history-metric" data-metric="volume"
-           role="tab" aria-selected="${metric === "volume"}">Volumen</button>
-       </div>`;
-
-  const caption =
-    metric === "weight"
-      ? "Höchstes Gewicht pro Training"
-      : bodyweight
-        ? "Wiederholungen pro Training, alle Sätze zusammen"
-        : "Volumen pro Training: Gewicht × Wiederholungen, alle Sätze zusammen";
+  const stats = [
+    [`${TROPHY_ICON}${recordText}`, bodyweight ? "Rekord (Wdh.)" : "Rekord (kg × Wdh.)"],
+    [change, "Seit Beginn"],
+    [history.length, history.length === 1 ? "Training" : "Trainings"],
+  ];
 
   return `
     <h2 class="section-title">Verlauf</h2>
     <div class="history-card">
-      ${toggle}
-      <div class="chart-caption">${caption}</div>
-      ${chart}
+      <div class="chart-caption">${bodyweight ? "Wiederholungen" : "Volumen"} pro Training · Zahlen = Wdh. je Satz</div>
+      ${renderSetsChart(history, bodyweight)}
       <div class="stat-row">
-        ${stats.map(([label, value]) => `<div class="stat"><span class="stat-value">${value}</span><span class="stat-label">${label}</span></div>`).join("")}
+        ${stats.map(([v, label]) => `<div class="stat"><span class="stat-value">${v}</span><span class="stat-label">${label}</span></div>`).join("")}
       </div>
     </div>
-    <ul class="history-list">${rows}</ul>
   `;
 }

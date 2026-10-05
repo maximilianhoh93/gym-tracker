@@ -4,7 +4,7 @@
 // (Store.getExerciseHistory liefert bereits nur Arbeitssätze).
 //
 // Steigerung nach der "doppelten Progression" (siehe CLAUDE.md):
-// 1. Jede Übung hat einen Wiederholungsbereich, z.B. 8–12.
+// 1. Jede Übung hat einen Wiederholungsbereich, Standard 6–10.
 // 2. Bei gleichem Gewicht von Training zu Training Wiederholungen dazugewinnen.
 // 3. Erst wenn ALLE Arbeitssätze das obere Ende erreichen, kommt Gewicht
 //    dazu, und man beginnt wieder am unteren Ende.
@@ -58,7 +58,8 @@ function progressionAdvice(exerciseId) {
   const below = (sets) => sets[0].reps < settings.repMin;
   const previous = history.length >= 2 ? history[history.length - 2].sets : null;
   if (previous && below(last) && below(previous)) {
-    const lighter = roundTo(weight * 0.9, weight < 20 ? 1 : 2.5);
+    // In den Schritten der Übung runden (z.B. 5 kg an Maschinen mit 5er-Platten)
+    const lighter = Math.max(settings.increment, roundTo(weight * 0.9, settings.increment));
     return { type: "decrease", weight: lighter, targets: last.map(() => settings.repMin) };
   }
 

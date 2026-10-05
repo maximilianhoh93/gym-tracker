@@ -259,7 +259,7 @@ function renderStart(unitId, exerciseId) {
     ${plan.units.length === 0
       ? `<p class="placeholder">Dieser Plan hat noch keine Trainingstage.</p>
          <a class="button-secondary" href="#plaene/${plan.id}">Trainingstage hinzufügen</a>`
-      : `<ul class="card-list">${cards}</ul>
+      : `<ul class="card-list unit-list">${cards}</ul>
          <p class="hint"><a href="#plaene/${plan.id}">Plan bearbeiten</a></p>`}
   `;
 }
@@ -343,7 +343,7 @@ function renderWorkout(container, plan, unitId) {
   // nicht erst suchen muss. Sind alle erledigt, wird der Knopf grün.
   container.innerHTML = `
     <div class="workout-top">
-      <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${total} erledigt</p>
+      <p class="intro">${done.length} von ${total} erledigt</p>
       <button class="finish-button ${allDone ? "ready" : ""}" data-action="finish-workout">Training beenden</button>
     </div>
     ${allDone
@@ -426,24 +426,12 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   // Falls man direkt über einen Link hier gelandet ist
   Store.startWorkout(plan.id, unit.id);
 
-  // Position in der Einheit, für "Übung 2 von 5" und den Weiter-Knopf
+  // Position in der Einheit, für "Übung 2 von 5"
   const index = unit.exerciseIds.indexOf(exercise.id);
-  const nextExercise = Store.getExercise(unit.exerciseIds[index + 1]);
-
-  const nextLink = nextExercise
-    ? `<a class="nav-row" href="#start/${unit.id}/${nextExercise.id}">
-         <span class="nav-row-label">Nächste Übung</span>
-         <span class="nav-row-value">${escapeHtml(nextExercise.name)}</span>
-         <span class="chevron" aria-hidden="true">›</span>
-       </a>`
-    : `<a class="nav-row" href="#start/${unit.id}">
-         <span class="nav-row-label">Zurück zur Übersicht</span>
-         <span class="chevron" aria-hidden="true">›</span>
-       </a>`;
 
   const intro = `
     <p class="intro">
-      ${escapeHtml(muscleGroupName(exercise.muscleGroupId))} · Übung ${index + 1} von ${unit.exerciseIds.length}
+      Übung ${index + 1} von ${unit.exerciseIds.length}
       ${Store.isExerciseDone(exercise.id) ? `<span class="badge done-badge">✓ Erledigt</span>` : ""}
     </p>`;
 
@@ -455,7 +443,6 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
         <p>Diese Übung ist für heute übersprungen. Es wird nichts für sie gespeichert.</p>
         <button class="pill-button" data-action="toggle-skip" data-id="${exercise.id}">↺ Zurückholen</button>
       </div>
-      ${nextLink}
     `;
     return;
   }
@@ -517,7 +504,6 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   // Die Timer-Zeile merkt sich in data-exercise, zu welcher Übung sie gehört
   container.innerHTML = `
     ${intro}
-    <div id="note-area">${renderNoteArea(exercise.id)}</div>
     ${lastLine}
     ${renderCoachCard(exercise.id, advice, sets)}
     <div class="sets-card">
@@ -535,12 +521,13 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       <button class="pill-button" data-action="remove-set" ${workingCount <= 1 ? "disabled" : ""}>− Satz</button>
       <button class="pill-button" data-action="add-set">+ Satz</button>
     </div>
-    <div id="timer-card" class="timer-row" data-exercise="${exercise.id}" data-unit="${unit.id}">
+    <div id="timer-card" class="timer-row ${RestTimer.status !== "idle" ? "running" : ""} ${RestTimer.status === "done" ? "done" : ""}"
+      data-exercise="${exercise.id}" data-unit="${unit.id}">
       ${renderTimerCard(exercise.id)}
     </div>
-    ${nextLink}
+    <div id="note-area">${renderNoteArea(exercise.id)}</div>
     <div id="history" data-exercise="${exercise.id}">
-      ${renderExerciseHistory(exercise.id, historyMetric)}
+      ${renderExerciseHistory(exercise.id)}
     </div>
     ${Store.isExerciseDone(exercise.id)
       ? ""
@@ -554,54 +541,43 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
 const ARROW_UP_ICON = `<svg class="row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>`;
 const TROPHY_ICON = `<svg class="row-icon trophy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4m8-4h3a3 3 0 0 1-3 4M12 13v4m-4 3h8m-6-3h4"/></svg>`;
 
-// Kompakte Karte über den Sätzen: Vorschlag fürs heutige Training und Rekord
+// Kompakte Karte über den Sätzen: Vorschlag fürs heutige Training
+// (der Rekord steht unten im Verlauf)
 function renderCoachCard(exerciseId, advice, sets) {
   const settings = Store.getExerciseSettings(exerciseId);
-  const record = exerciseRecord(exerciseId);
-  if (!advice && !record) return "";
+  if (!advice) return "";
 
   // Ist das vorgeschlagene Gewicht schon in allen Arbeitssätzen eingetragen?
   const working = workingSets(sets);
-  const applied = advice && advice.weight !== null && working.every((set) => set.weight === advice.weight);
+  const applied = advice.weight !== null && working.every((set) => set.weight === advice.weight);
   const applyButton =
-    advice && (advice.type === "increase" || advice.type === "decrease") && !applied
+    (advice.type === "increase" || advice.type === "decrease") && !applied
       ? `<button class="coach-apply" data-action="apply-advice">Übernehmen</button>`
       : "";
 
-  let adviceText = "";
-  if (advice) {
-    const w = advice.weight !== null ? `${formatNumber(advice.weight)} kg` : "";
-    if (advice.type === "increase") {
-      adviceText = `<strong>${w}</strong> × ${settings.repMin} (+${formatNumber(advice.increment)} kg)`;
-    } else if (advice.type === "decrease") {
-      adviceText = `Zweimal unter ${settings.repMin} Wdh.: <strong>${w}</strong> probieren?`;
-    } else if (advice.type === "bodyweight-top") {
-      adviceText = `Oberes Ende erreicht: Zusatzgewicht oder schwerere Variante?`;
-    } else {
-      adviceText = w ? `<strong>${w}</strong> · je 1 Wdh. mehr` : `Je 1 Wiederholung mehr`;
-    }
+  const w = advice.weight !== null ? `${formatNumber(advice.weight)} kg` : "";
+  let adviceText;
+  if (advice.type === "increase") {
+    adviceText = `<strong>${w}</strong> × ${settings.repMin} (+${formatNumber(advice.increment)} kg)`;
+  } else if (advice.type === "decrease") {
+    adviceText = `Zweimal unter ${settings.repMin} Wdh.: <strong>${w}</strong> probieren?`;
+  } else if (advice.type === "bodyweight-top") {
+    adviceText = `Oberes Ende erreicht: Zusatzgewicht oder schwerere Variante?`;
+  } else {
+    adviceText = w ? `<strong>${w}</strong> · je 1 Wdh. mehr` : `Je 1 Wiederholung mehr`;
   }
 
-  const adviceRow = advice
-    ? `<div class="coach-row">
-         ${ARROW_UP_ICON}
-         <span class="coach-text">${adviceText}</span>
-         ${applyButton}
-       </div>`
-    : "";
-
-  const recordRow = record
-    ? `<div class="coach-row">
-         ${TROPHY_ICON}
-         <span class="coach-text">Rekord: <strong>${record.weight !== null ? formatNumber(record.weight) + " kg × " : ""}${record.reps}${record.weight === null ? " Wdh." : ""}</strong>
-           · ${shortDate(record.date)}</span>
-       </div>`
-    : "";
+  const adviceRow = `
+    <div class="coach-row">
+      ${ARROW_UP_ICON}
+      <span class="coach-text">${adviceText}</span>
+      ${applyButton}
+    </div>`;
 
   // Kleiner Link zum Ändern von Bereich und Steigerung
   const rangeLink = `<a class="coach-range" href="#uebungen/${exerciseId}">Bereich ${settings.repMin}–${settings.repMax} Wdh. ›</a>`;
 
-  return `<div class="coach-card">${adviceRow}${recordRow}${advice ? rangeLink : ""}</div>`;
+  return `<div class="coach-card">${adviceRow}${rangeLink}</div>`;
 }
 
 // Vorschlag übernehmen: Gewicht in alle Arbeitssätze, Aufwärmsatz passend
@@ -663,9 +639,7 @@ function refreshNoteArea() {
   if (area) area.innerHTML = renderNoteArea(exerciseId);
 }
 
-// Welche Kennzahl der Verlauf zeigt: "weight" (Gewicht) oder "volume".
-// Bleibt beim Wechsel zwischen Übungen erhalten.
-let historyMetric = "weight";
+
 
 // Zahl für ein Eingabefeld: null -> "", 62.5 -> "62,5" (deutsches Komma)
 function formatNumber(value) {
@@ -681,43 +655,73 @@ function parseNumber(text) {
 }
 
 // ===== Pausentimer: Anzeige =====
-// Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt:
-// 1. Auf der Übungsseite eine schmale Zeile: Pausenzeit einstellen und starten.
-// 2. Solange der Timer aktiv ist, sitzt oben links ein kleiner schwarzer
-//    Kreis mit einem orangen Ring, der wie eine Ladeanzeige abläuft.
-//    Antippen klappt ihn zu einer Ansicht mit Zeit und Knöpfen auf.
-//    (Im Code heißt dieses Widget "island", also "Insel".)
-//    Oben links, damit die echte Dynamic Island des iPhones frei bleibt.
+// Die Logik steckt in js/timer.js (RestTimer). Angezeigt wird der Timer nur
+// in der schmalen Zeile auf der Übungsseite:
+// - bereit:     "Pause  − 2:00 +  Start"
+// - läuft:      ein oranger Balken in der Zeile zeigt die Restzeit, dazu
+//               Anhalten/Fortsetzen und Abbrechen
+// - abgelaufen: "Pause vorbei" mit "Nochmal" und "Fertig"
+// Der Timer läuft weiter, wenn man die Übung wechselt; jede Übungsseite
+// zeigt den laufenden Timer an.
 
-// Fortschrittsring im Kreis. Umfang = 2 · π · Radius.
-// Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
-// "verschoben" wird, erscheint nur teilweise (stroke-dashoffset).
-const MINI_RING_RADIUS = 9;
-const MINI_RING_CIRCUMFERENCE = 2 * Math.PI * MINI_RING_RADIUS;
-
-// Ist das Widget gerade aufgeklappt?
-let islandExpanded = false;
-
-// ----- Schmale Timer-Zeile auf der Übungsseite -----
-
+// Zeile je nach Zustand des Timers
 function renderTimerCard(exerciseId) {
-  const restSeconds = Store.getRestSeconds(exerciseId);
+  const status = RestTimer.status;
+
+  if (status === "idle") {
+    const restSeconds = Store.getRestSeconds(exerciseId);
+    return `
+      <span class="timer-row-title">Pause</span>
+      <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−</button>
+      <span class="rest-value">${formatDuration(restSeconds * 1000)}</span>
+      <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+</button>
+      <button class="timer-start-button" data-action="timer-start">Start</button>
+    `;
+  }
+
+  // Läuft der Timer für eine andere Übung, steht ihr Name dabei
+  const context = RestTimer.context;
+  const other = context && context.exerciseId !== exerciseId ? ` · ${escapeHtml(context.exerciseName)}` : "";
+
+  if (status === "done") {
+    return `
+      <span class="timer-row-title done">Pause vorbei${other}</span>
+      <button class="timer-start-button" data-action="timer-restart">Nochmal</button>
+      <button class="timer-icon-button" data-action="timer-reset" aria-label="Fertig">${ICONS.close}</button>
+    `;
+  }
+
+  // Läuft oder angehalten: Balken im Hintergrund der Zeile.
+  // Seine Breite = Anteil der Restzeit (100 % am Anfang, 0 % am Ende).
+  const percent = RestTimer.getProgress() * 100;
   return `
-    <span class="timer-row-title">Pause</span>
-    <button class="step-button" data-action="timer-adjust" data-delta="-15" aria-label="15 Sekunden weniger">−</button>
-    <span class="rest-value">${formatDuration(restSeconds * 1000)}</span>
-    <button class="step-button" data-action="timer-adjust" data-delta="15" aria-label="15 Sekunden mehr">+</button>
-    <button class="timer-start-button" data-action="timer-start">Start</button>
+    <span class="timer-bar-fill" id="timer-fill" style="width: ${percent}%"></span>
+    <span class="timer-row-title">${status === "paused" ? "Angehalten" : "Pause"}${other}</span>
+    <span class="rest-value timer-time" id="timer-time">${formatDuration(RestTimer.getRemainingMs())}</span>
+    <button class="timer-icon-button" data-action="${status === "paused" ? "timer-resume" : "timer-pause"}"
+      aria-label="${status === "paused" ? "Fortsetzen" : "Anhalten"}">${status === "paused" ? ICONS.play : ICONS.pause}</button>
+    <button class="timer-icon-button" data-action="timer-reset" aria-label="Abbrechen">${ICONS.close}</button>
   `;
 }
 
-// Zeichnet die Timer-Karte neu (nur die Karte, nicht die ganze Seite)
+// Zeichnet die Timer-Zeile neu (nur die Zeile, nicht die ganze Seite)
 function refreshTimerCard() {
   const card = document.getElementById("timer-card");
-  if (card) card.innerHTML = renderTimerCard(card.dataset.exercise);
+  if (!card) return;
+  card.innerHTML = renderTimerCard(card.dataset.exercise);
+  card.classList.toggle("running", RestTimer.status !== "idle");
+  card.classList.toggle("done", RestTimer.status === "done");
 }
 
-// Knöpfe der Timer-Karte
+// Mehrmals pro Sekunde: nur Zeit und Balkenbreite anpassen (sparsam)
+function updateTimerDisplay() {
+  const time = document.getElementById("timer-time");
+  const fill = document.getElementById("timer-fill");
+  if (time) time.textContent = formatDuration(RestTimer.getRemainingMs());
+  if (fill) fill.style.width = RestTimer.getProgress() * 100 + "%";
+}
+
+// Knöpfe der Timer-Zeile
 function handleTimerAction(button) {
   const card = document.getElementById("timer-card");
   const exerciseId = card.dataset.exercise;
@@ -725,8 +729,6 @@ function handleTimerAction(button) {
 
   if (action === "timer-start") {
     const exercise = Store.getExercise(exerciseId);
-    islandExpanded = false;
-    // Läuft schon ein Timer, wird er durch den neuen ersetzt
     RestTimer.start(Store.getRestSeconds(exerciseId), {
       unitId: card.dataset.unit,
       exerciseId: exerciseId,
@@ -736,130 +738,21 @@ function handleTimerAction(button) {
     // Zwischen 15 Sekunden und 10 Minuten bleiben
     const seconds = Store.getRestSeconds(exerciseId) + Number(button.dataset.delta);
     Store.setRestSeconds(exerciseId, Math.min(600, Math.max(15, seconds)));
+  } else if (action === "timer-pause") {
+    RestTimer.pause();
+  } else if (action === "timer-resume") {
+    RestTimer.resume();
+  } else if (action === "timer-reset") {
+    RestTimer.reset();
+  } else if (action === "timer-restart") {
+    RestTimer.start(RestTimer.durationMs / 1000, RestTimer.context);
   }
   refreshTimerCard();
 }
 
-// ----- Die Insel oben -----
-
-// Zeichnet die Insel passend zum Zustand des Timers.
-// Sie enthält immer beide Varianten (kompakt und aufgeklappt);
-// per CSS ist jeweils nur eine sichtbar.
-function renderIsland() {
-  const island = document.getElementById("island");
-  const status = RestTimer.status;
-
-  if (status === "idle") {
-    island.hidden = true;
-    islandExpanded = false;
-    document.body.classList.remove("has-island");
-    return;
-  }
-
-  // Beim ersten Erscheinen die "Aufpopp"-Animation abspielen
-  if (island.hidden) {
-    island.hidden = false;
-    island.classList.remove("pop");
-    void island.offsetWidth; // Trick: zwingt den Browser, die Animation neu zu starten
-    island.classList.add("pop");
-  }
-  // Damit macht das CSS oben links Platz (der Zurück-Link rückt nach rechts)
-  document.body.classList.add("has-island");
-
-  island.classList.toggle("expanded", islandExpanded);
-  island.classList.toggle("done", status === "done");
-  island.classList.toggle("paused", status === "paused");
-
-  const { unitId, exerciseId, exerciseName } = RestTimer.context;
-  const time = formatDuration(RestTimer.getRemainingMs());
-
-  // Rechter Knopf im aufgeklappten Zustand, je nach Zustand
-  const mainButton = {
-    running: `<button class="island-button orange" data-island="pause" aria-label="Anhalten">${ICONS.pause}</button>`,
-    paused: `<button class="island-button orange" data-island="resume" aria-label="Fortsetzen">${ICONS.play}</button>`,
-    done: `<button class="island-button green" data-island="restart" aria-label="Nochmal">${ICONS.restart}</button>`,
-  }[status];
-
-  island.innerHTML = `
-    <button class="island-compact" data-island="expand" aria-label="Timer öffnen">
-      <svg class="mini-ring" viewBox="0 0 24 24" aria-hidden="true">
-        <circle class="mini-track" cx="12" cy="12" r="${MINI_RING_RADIUS}"></circle>
-        <circle class="mini-progress" cx="12" cy="12" r="${MINI_RING_RADIUS}"
-          stroke-dasharray="${MINI_RING_CIRCUMFERENCE}"
-          stroke-dashoffset="${MINI_RING_CIRCUMFERENCE * (1 - RestTimer.getProgress())}"></circle>
-      </svg>
-    </button>
-
-    <div class="island-expanded">
-      <a class="island-info" href="#start/${unitId}/${exerciseId}" data-island="goto">
-        <span class="island-caption">${escapeHtml(exerciseName)}</span>
-        <span class="island-big">${status === "done" ? "Pause vorbei" : `<span class="island-time">${time}</span>`}</span>
-      </a>
-      <div class="island-buttons">
-        <button class="island-button gray" data-island="reset" aria-label="${status === "done" ? "Fertig" : "Abbrechen"}">${ICONS.close}</button>
-        ${mainButton}
-      </div>
-    </div>
-  `;
-}
-
-// Aktualisiert nur Ziffern und Ring. Wird mehrmals pro Sekunde aufgerufen,
-// daher bewusst sparsam: kein Neuzeichnen der ganzen Insel.
-function updateIslandTime() {
-  const time = formatDuration(RestTimer.getRemainingMs());
-  document.querySelectorAll("#island .island-time").forEach((el) => (el.textContent = time));
-  const ring = document.querySelector("#island .mini-progress");
-  if (ring) {
-    ring.setAttribute("stroke-dashoffset", MINI_RING_CIRCUMFERENCE * (1 - RestTimer.getProgress()));
-  }
-}
-
-// Antippen in der Insel. Die Insel liegt außerhalb von <main>, daher
-// bekommt sie einen eigenen Behandler.
-document.getElementById("island").addEventListener("click", (event) => {
-  // Den Tipp nicht weiter nach oben melden. Sonst hielte der Behandler
-  // "Tippen außerhalb" (unten) ihn für einen Tipp daneben, weil der
-  // angetippte Knopf nach dem Neuzeichnen nicht mehr existiert.
-  event.stopPropagation();
-
-  const target = event.target.closest("[data-island]");
-  if (!target) return;
-  const action = target.dataset.island;
-
-  if (action === "expand") {
-    islandExpanded = true;
-  } else if (action === "goto") {
-    // Der Link führt zur Übung; die Insel klappt dabei zu
-    islandExpanded = false;
-  } else if (action === "pause") {
-    RestTimer.pause();
-  } else if (action === "resume") {
-    RestTimer.resume();
-  } else if (action === "restart") {
-    islandExpanded = false;
-    RestTimer.start(RestTimer.durationMs / 1000, RestTimer.context);
-  } else if (action === "reset") {
-    RestTimer.reset();
-  }
-  renderIsland();
-});
-
-// Tippen irgendwo außerhalb der aufgeklappten Insel klappt sie wieder zu
-// (außer wenn die Pause vorbei ist: Das soll man bewusst bestätigen)
-document.addEventListener("click", (event) => {
-  if (!islandExpanded || RestTimer.status === "done") return;
-  if (event.target.closest("#island")) return;
-  islandExpanded = false;
-  renderIsland();
-});
-
 // Der Timer meldet sich bei jedem Takt und bei jeder Statusänderung
-RestTimer.onTick = updateIslandTime;
-RestTimer.onChange = () => {
-  // Ist die Pause vorbei, klappt die Insel von selbst auf
-  if (RestTimer.status === "done") islandExpanded = true;
-  renderIsland();
-};
+RestTimer.onTick = updateTimerDisplay;
+RestTimer.onChange = refreshTimerCard;
 
 // Welche Einheit ist als nächste dran? Die nach der zuletzt trainierten
 // (in der Reihenfolge des Plans). Nach der letzten geht es wieder von vorn los.
@@ -960,7 +853,6 @@ function renderPlanList(plans) {
     .join("");
 
   return `
-    <p class="intro">Wähle eine Trainingsart, um ihre Trainingstage zu sehen und sie zu aktivieren.</p>
     ${cards}
     <button class="button-secondary" data-action="add-plan">+ Eigener Plan</button>
   `;
@@ -997,7 +889,7 @@ function renderPlanDetail(plan) {
     plan.units.length === 0
       ? `<p class="placeholder">Noch keine Trainingstage. Füge unten den ersten hinzu, z.B. „Oberkörper“.</p>`
       : `<ul class="card-list sortable" data-sort="plan-units">${cards}</ul>
-         ${plan.units.length > 1 ? `<p class="hint">Zum Sortieren einen Trainingstag am ≡ ziehen.</p>` : ""}`;
+`;
 
   // data-sort sagt dem Drag-and-Drop-Code, WAS hier sortiert wird
   return `
@@ -1042,13 +934,8 @@ function renderUnitDetail(plan, unit) {
       ? `<p class="placeholder">Noch keine Übungen ausgewählt.</p>`
       : `<ul class="card-list sortable" data-sort="unit-exercises">${cards}</ul>`;
 
-  const hint =
-    exercises.length > 1 ? `<p class="hint">Zum Sortieren eine Übung am ≡ ziehen.</p>` : "";
-
   return `
-    <p class="intro">${escapeHtml(plan.name)} · ${exerciseCountText(exercises.length)}</p>
     ${list}
-    ${hint}
     <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">+ Übungen auswählen</a>
     <div class="manage-buttons">
       <button class="text-button" data-action="rename-unit">Trainingstag umbenennen</button>
@@ -1092,7 +979,6 @@ function renderExercisePicker(plan, unit) {
       : sections;
 
   return `
-    <p class="intro">Tippe Übungen an, um sie zu „${escapeHtml(unit.name)}“ hinzuzufügen oder zu entfernen.</p>
     ${poolContent}
     <h2 class="section-title">Neue Übung anlegen</h2>
     ${renderExerciseForm(plan.id, unit.id)}
@@ -1137,8 +1023,7 @@ function renderUebungen(exerciseId) {
     .join("");
 
   container.innerHTML = `
-    <p class="intro">Lege jede Übung hier einmal an. In deinen Plänen wählst du sie dann pro Einheit aus.
-      Tippe auf eine Übung, um sie zu bearbeiten.</p>
+    <p class="intro">Tippe auf eine Übung, um sie zu bearbeiten.</p>
     ${renderExerciseForm()}
     ${groups.length === 0 ? `<p class="placeholder">Noch keine Übungen im Pool.</p>` : sections}
   `;
@@ -1784,14 +1669,6 @@ appMain.addEventListener("click", (event) => {
     const next = current === null ? 3 : current + Number(button.dataset.delta);
     Store.setWeeklyGoal(Math.min(7, Math.max(1, next)));
     renderCurrentView();
-    return;
-  }
-
-  // Umschalter im Verlauf: nur den Verlaufsbereich neu zeichnen
-  if (action === "history-metric") {
-    historyMetric = button.dataset.metric;
-    const history = document.getElementById("history");
-    history.innerHTML = renderExerciseHistory(history.dataset.exercise, historyMetric);
     return;
   }
 
