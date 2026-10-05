@@ -205,7 +205,9 @@ function renderTraining(unitId, exerciseId) {
   `;
 }
 
-// Training einer Einheit: Liste der Übungen. Ein Tipp öffnet die Übung.
+// Training einer Einheit: oben die offenen Übungen, darunter die erledigten.
+// Links bei jeder Übung ein Kreis zum Abhaken, ein Tipp auf den Namen
+// öffnet die Übung (Sätze und Timer).
 function renderWorkout(container, plan, unitId) {
   const unit = Store.getUnit(plan.id, unitId);
   if (!unit) {
@@ -217,29 +219,83 @@ function renderWorkout(container, plan, unitId) {
   Store.startWorkout(plan.id, unit.id);
 
   const exercises = unit.exerciseIds.map((id) => Store.getExercise(id)).filter(Boolean);
-  const cards = exercises
-    .map(
-      (exercise) => `
-        <li>
-          <a class="exercise-card unit-card" href="#training/${unit.id}/${exercise.id}">
-            <span class="exercise-info">
-              <span class="exercise-name">${escapeHtml(exercise.name)}</span>
-              <span class="exercise-meta">${escapeHtml(muscleGroupName(exercise.muscleGroupId))}</span>
-            </span>
-            <span class="chevron" aria-hidden="true">›</span>
-          </a>
-        </li>
-      `
-    )
-    .join("");
+  if (exercises.length === 0) {
+    container.innerHTML = `
+      <p class="placeholder">Diese Einheit hat noch keine Übungen.</p>
+      <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">Übungen auswählen</a>
+    `;
+    return;
+  }
+
+  // In zwei Gruppen aufteilen; die Reihenfolge des Plans bleibt jeweils erhalten
+  const open = exercises.filter((ex) => !Store.isExerciseDone(ex.id));
+  const done = exercises.filter((ex) => Store.isExerciseDone(ex.id));
+
+  const card = (exercise) => {
+    const isDone = Store.isExerciseDone(exercise.id);
+    // view-transition-name: ein eindeutiger Name pro Kästchen. Damit kann
+    // der Browser jedes Kästchen beim Umsortieren an seinen neuen Platz
+    // "gleiten" lassen (siehe renderAnimated).
+    return `
+      <li class="exercise-card workout-card ${isDone ? "done" : ""}"
+        style="view-transition-name: ex-${exercise.id}">
+        <button class="check-button" data-action="toggle-done" data-id="${exercise.id}"
+          aria-label="${isDone ? "Haken entfernen" : "Abhaken"}" aria-pressed="${isDone}">
+          <span class="check" aria-hidden="true">${isDone ? "✓" : ""}</span>
+        </button>
+        <a class="card-main" href="#training/${unit.id}/${exercise.id}">
+          <span class="exercise-name">${escapeHtml(exercise.name)}</span>
+          <span class="exercise-meta">${setsSummary(exercise)}</span>
+        </a>
+        <span class="chevron" aria-hidden="true">›</span>
+      </li>
+    `;
+  };
+
+  const doneSection =
+    done.length > 0
+      ? `<h2 class="section-title">Erledigt</h2>
+         <ul class="card-list">${done.map(card).join("")}</ul>`
+      : "";
+
+  // Sind alle Übungen erledigt, wird "Training beenden" zum Hauptknopf
+  const allDone = open.length === 0;
 
   container.innerHTML = `
-    <p class="intro">${escapeHtml(plan.name)} · ${exerciseCountText(exercises.length)}</p>
-    ${exercises.length === 0
-      ? `<p class="placeholder">Diese Einheit hat noch keine Übungen.</p>
-         <a class="button-secondary" href="#plaene/${plan.id}/${unit.id}/auswahl">Übungen auswählen</a>`
-      : `<ul class="card-list">${cards}</ul>`}
+    <p class="intro">${escapeHtml(plan.name)} · ${done.length} von ${exercises.length} erledigt</p>
+    ${allDone
+      ? `<p class="all-done">Alle Übungen erledigt. Stark!</p>`
+      : `<ul class="card-list">${open.map(card).join("")}</ul>`}
+    ${doneSection}
+    <button class="${allDone ? "button-primary button-wide finish-button" : "button-secondary"}"
+      data-action="finish-workout">Training beenden</button>
   `;
+}
+
+// Kurze Zusammenfassung unter dem Übungsnamen, z.B. "Brust · 62,5 kg × 10 · 8"
+// Solange nichts eingetragen ist, nur Muskelgruppe und Satzanzahl.
+function setsSummary(exercise) {
+  const group = muscleGroupName(exercise.muscleGroupId);
+  const sets = Store.getSets(exercise.id);
+  const filled = sets.filter((set) => set.weight !== null || set.reps !== null);
+  if (filled.length === 0) {
+    return `${escapeHtml(group)} · ${sets.length} Sätze`;
+  }
+  const weight = filled[0].weight !== null ? `${formatNumber(filled[0].weight)} kg × ` : "";
+  const reps = filled.map((set) => (set.reps !== null ? set.reps : "–")).join(" · ");
+  return `${escapeHtml(group)} · ${weight}${reps}`;
+}
+
+// Zeichnet die Ansicht neu, und zwar mit Animation, wenn der Browser
+// "View Transitions" kann (Safari ab iOS 18): Er fotografiert den alten
+// Zustand, zeichnet neu und lässt dann jedes Kästchen mit
+// view-transition-name von der alten an die neue Stelle gleiten.
+function renderAnimated() {
+  if (document.startViewTransition) {
+    document.startViewTransition(() => renderCurrentView());
+  } else {
+    renderCurrentView(); // Ältere Browser: ohne Animation
+  }
 }
 
 // Eine Übung im Training: oben die Sätze, darunter der Pausentimer
@@ -814,6 +870,28 @@ appMain.addEventListener("click", (event) => {
   // Timer-Knöpfe haben ihren eigenen Behandler (siehe oben)
   if (action.startsWith("timer-")) {
     handleTimerAction(button);
+    return;
+  }
+
+  // Übung abhaken bzw. Haken entfernen
+  if (action === "toggle-done") {
+    Store.toggleExerciseDone(exerciseId);
+    renderAnimated();
+    return;
+  }
+
+  // Training beenden und speichern
+  if (action === "finish-workout") {
+    const unitIdNow = parseHash().params[0];
+    const unit = Store.getUnit(Store.getActivePlanId(), unitIdNow);
+    const openCount = unit.exerciseIds.filter((id) => !Store.isExerciseDone(id)).length;
+    if (openCount > 0) {
+      const text = openCount === 1 ? "Noch 1 Übung ist offen." : `Noch ${openCount} Übungen sind offen.`;
+      if (!confirm(`${text} Training trotzdem beenden?`)) return;
+    }
+    Store.finishWorkout();
+    RestTimer.reset(); // Ein laufender Pausentimer gehört zum beendeten Training
+    location.hash = "training";
     return;
   }
 

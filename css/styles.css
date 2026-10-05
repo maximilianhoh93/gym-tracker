@@ -812,3 +812,75 @@ body.has-island .back-link {
   0%, 100% { box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); }
   50%      { box-shadow: 0 0 0 4px rgba(255, 159, 10, 0.55); }
 }
+
+/* ===== Abhaken auf der Trainingsseite ===== */
+.workout-card {
+  padding-left: 4px;
+  padding-right: 12px;
+}
+
+/* Große, unsichtbare Tipp-Fläche um den Kreis herum */
+.check-button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.check-button:active .check {
+  transform: scale(0.85);
+}
+
+.check {
+  transition: transform 0.1s, background 0.2s;
+}
+
+/* Abgehakt: grüner Kreis, Name durchgestrichen, alles etwas blasser */
+.workout-card.done .check {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.workout-card.done .exercise-name {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.workout-card.done .card-main,
+.workout-card.done .chevron {
+  opacity: 0.6;
+}
+
+.all-done {
+  margin: 8px 0 0;
+  padding: 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--green) 15%, var(--surface));
+  font-weight: 600;
+  text-align: center;
+}
+
+/* "Training beenden" als <button> (button-secondary war bisher nur für Links) */
+button.button-secondary {
+  width: 100%;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.finish-button {
+  margin-top: 16px;
+  background: var(--green);
+}
+
+/* Dauer der Gleit-Animation beim Abhaken (View Transitions) */
+::view-transition-group(*) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.3, 1, 0.4, 1);
+}

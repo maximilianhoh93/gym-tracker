@@ -18,7 +18,7 @@
 //   Wird ab Schritt 4 befüllt.
 // - currentWorkout: das gerade laufende Training (oder null). Pro Übung
 //   die Sätze mit Gewicht (kg) und Wiederholungen:
-//   { unitId: "ppl-push", exercises: { "<übung-id>": { sets: [{ weight: 60, reps: 10 }, ...] } } }
+//   { unitId: "ppl-push", exercises: { "<übung-id>": { sets: [{ weight: 60, reps: 10 }, ...], done: false } } }
 
 // Standard-Pausenzeit für neue Übungen in Sekunden (2 Minuten)
 const DEFAULT_REST_SECONDS = 120;
@@ -246,6 +246,45 @@ const Store = {
     rememberSetCount(exerciseId, entry.sets.length);
   },
 
+  // Ist die Übung im laufenden Training abgehakt?
+  isExerciseDone(exerciseId) {
+    return Boolean(currentWorkout && currentWorkout.exercises[exerciseId] && currentWorkout.exercises[exerciseId].done);
+  },
+
+  // Haken setzen bzw. wieder entfernen
+  toggleExerciseDone(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (entry) entry.done = !entry.done;
+  },
+
+  // Training beenden: Es wandert in die Liste der absolvierten Trainings.
+  // Gespeichert werden nur Übungen, die abgehakt sind oder ausgefüllte
+  // Sätze haben, jeweils mit der verwendeten Pausenzeit.
+  finishWorkout() {
+    if (!currentWorkout) return;
+    const finished = {
+      id: currentWorkout.id,
+      planId: currentWorkout.planId,
+      unitId: currentWorkout.unitId,
+      startedAt: currentWorkout.startedAt,
+      date: new Date().toISOString(), // Zeitpunkt des Beendens
+      exercises: [],
+    };
+    // Object.entries macht aus { id: eintrag, ... } eine Liste von [id, eintrag]
+    Object.entries(currentWorkout.exercises).forEach(([exerciseId, entry]) => {
+      const sets = entry.sets.filter((set) => set.weight !== null || set.reps !== null);
+      if (sets.length === 0 && !entry.done) return; // Übung nicht gemacht
+      finished.exercises.push({
+        exerciseId: exerciseId,
+        sets: sets,
+        done: Boolean(entry.done),
+        restSeconds: Store.getRestSeconds(exerciseId),
+      });
+    });
+    workouts.push(finished);
+    currentWorkout = null;
+  },
+
   // Letzten Satz entfernen (mindestens einer bleibt)
   removeSet(exerciseId) {
     const entry = workoutEntry(exerciseId);
@@ -303,7 +342,7 @@ function workoutEntry(exerciseId) {
     const count = exercise && exercise.setCount ? exercise.setCount : DEFAULT_SET_COUNT;
     // Array.from({ length: 2 }, ...) erzeugt eine Liste mit 2 Einträgen
     const sets = Array.from({ length: count }, () => ({ weight: null, reps: null }));
-    currentWorkout.exercises[exerciseId] = { sets: sets };
+    currentWorkout.exercises[exerciseId] = { sets: sets, done: false };
   }
   return currentWorkout.exercises[exerciseId];
 }
