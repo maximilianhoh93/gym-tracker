@@ -527,8 +527,9 @@ const Store = {
     const history = [];
     workouts.forEach((workout) => {
       const entry = workout.exercises.find((ex) => ex.exerciseId === exerciseId);
-      if (entry && entry.done && !entry.skipped && entry.sets.length > 0) {
-        history.push({ date: workout.date, sets: entry.sets });
+      const working = entry ? workingSets(entry.sets) : [];
+      if (entry && entry.done && !entry.skipped && working.length > 0) {
+        history.push({ date: workout.date, sets: working });
       }
     });
     history.sort((a, b) => a.date.localeCompare(b.date));
@@ -592,10 +593,11 @@ const Store = {
   addSet(exerciseId) {
     const entry = workoutEntry(exerciseId);
     if (!entry) return;
-    const last = entry.sets[entry.sets.length - 1];
-    // { ...last } erstellt eine Kopie des letzten Satzes
-    entry.sets.push(last ? { ...last } : { weight: null, reps: null });
-    rememberSetCount(exerciseId, entry.sets.length);
+    const working = workingSets(entry.sets);
+    const last = working[working.length - 1];
+    // Kopie des letzten Arbeitssatzes (Gewicht und Wiederholungen)
+    entry.sets.push(last ? { weight: last.weight, reps: last.reps } : { weight: null, reps: null });
+    rememberSetCount(exerciseId, workingSets(entry.sets).length);
     touchWorkout();
     save();
   },
@@ -640,8 +642,11 @@ const Store = {
     const newestFirst = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
     for (const workout of newestFirst) {
       const entry = workout.exercises.find((ex) => ex.exerciseId === exerciseId);
-      if (entry && entry.done && !entry.skipped && entry.sets.length > 0) {
-        return structuredClone({ date: workout.date, sets: entry.sets });
+      const working = entry ? workingSets(entry.sets) : [];
+      if (entry && entry.done && !entry.skipped && working.length > 0) {
+        // Aufwärmsatz getrennt mitgeben (für den Hinweis im leeren Feld)
+        const warmup = entry.sets.find((set) => set.warmup) || null;
+        return structuredClone({ date: workout.date, sets: working, warmup: warmup });
       }
     }
     return null;
@@ -694,12 +699,33 @@ const Store = {
     save();
   },
 
+  // Aufwärmsatz im laufenden Training hinzufügen bzw. entfernen.
+  // Die Übung merkt sich die Wahl für die nächsten Trainings.
+  addWarmup(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry || entry.sets.some((set) => set.warmup)) return;
+    const firstWorking = workingSets(entry.sets)[0];
+    entry.sets.unshift({ weight: warmupWeightFor(firstWorking ? firstWorking.weight : null), reps: null, warmup: true });
+    Store.updateExercise(exerciseId, { warmup: true });
+    touchWorkout();
+    save();
+  },
+
+  removeWarmup(exerciseId) {
+    const entry = workoutEntry(exerciseId);
+    if (!entry) return;
+    entry.sets = workingSets(entry.sets);
+    Store.updateExercise(exerciseId, { warmup: false });
+    touchWorkout();
+    save();
+  },
+
   // Letzten Satz entfernen (mindestens einer bleibt)
   removeSet(exerciseId) {
     const entry = workoutEntry(exerciseId);
-    if (!entry || entry.sets.length <= 1) return;
-    entry.sets.pop(); // pop() entfernt das letzte Element
-    rememberSetCount(exerciseId, entry.sets.length);
+    if (!entry || workingSets(entry.sets).length <= 1) return;
+    entry.sets.pop(); // pop() entfernt das letzte Element (immer ein Arbeitssatz)
+    rememberSetCount(exerciseId, workingSets(entry.sets).length);
     touchWorkout();
     save();
   },
@@ -765,6 +791,10 @@ function workoutEntry(exerciseId) {
       const lastSet = last ? last.sets[Math.min(i, last.sets.length - 1)] : null;
       return { weight: lastSet ? lastSet.weight : null, reps: null };
     });
+    // Aufwärmsatz vorne, Gewicht etwa die Hälfte des ersten Arbeitssatzes
+    if (Store.getExerciseSettings(exerciseId).warmup) {
+      sets.unshift({ weight: warmupWeightFor(sets[0].weight), reps: null, warmup: true });
+    }
     currentWorkout.exercises[exerciseId] = { sets: sets, done: false, skipped: false };
   }
   return currentWorkout.exercises[exerciseId];
@@ -784,6 +814,21 @@ function weekKeyOf(date) {
 function dayKeyOf(date) {
   const d = new Date(date);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Nur die Arbeitssätze, ohne Aufwärmsätze. Aufwärmsätze zählen nie für
+// Volumen, Verlauf, Rekorde oder Vorschläge.
+function workingSets(sets) {
+  return sets.filter((set) => !set.warmup);
+}
+
+// Vorschlag für den Aufwärmsatz: etwa die Hälfte des Arbeitsgewichts,
+// gerundet auf 2,5 kg (unter 20 kg auf 1 kg, z.B. bei Kurzhanteln)
+function warmupWeightFor(workingWeight) {
+  if (workingWeight === null || workingWeight === undefined) return null;
+  const half = workingWeight / 2;
+  const step = half < 20 ? 1 : 2.5;
+  return Math.round(half / step) * step;
 }
 
 // Merkt sich den Zeitpunkt der letzten Eingabe im laufenden Training

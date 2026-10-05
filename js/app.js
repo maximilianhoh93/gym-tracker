@@ -347,7 +347,7 @@ function renderWorkout(container, plan, unitId) {
 function setsSummary(exercise) {
   if (Store.isExerciseSkipped(exercise.id)) return "Heute übersprungen";
   const group = escapeHtml(muscleGroupName(exercise.muscleGroupId));
-  const sets = Store.getSets(exercise.id);
+  const sets = workingSets(Store.getSets(exercise.id));
   if (sets.some((set) => set.reps !== null)) {
     return `${group} · ${formatSetsShort(sets)}`;
   }
@@ -470,21 +470,30 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   // data-field, welcher Satz und welcher Wert gemeint ist.
   // inputmode sagt dem iPhone, welche Tastatur es zeigen soll:
   // "decimal" = Zahlen mit Komma (für 62,5 kg), "numeric" = nur Ziffern.
+  // Der Aufwärmsatz heißt "W", die Arbeitssätze sind 1, 2, 3 ...
+  const hasWarmup = sets.some((set) => set.warmup);
+  let workingNumber = 0;
   const rows = sets
-    .map(
-      (set, i) => `
-        <div class="set-row">
-          <span class="set-number">${i + 1}</span>
+    .map((set, i) => {
+      const label = set.warmup ? "W" : String(++workingNumber);
+      const name = set.warmup ? "Aufwärmsatz" : `Satz ${label}`;
+      const repsHint = set.warmup
+        ? last && last.warmup && last.warmup.reps !== null ? last.warmup.reps : "–"
+        : lastReps(workingNumber - 1);
+      return `
+        <div class="set-row ${set.warmup ? "warmup" : ""}">
+          <span class="set-number">${label}</span>
           <input class="set-input" type="text" inputmode="decimal" placeholder="${weightHint}"
             value="${formatNumber(set.weight)}" data-index="${i}" data-field="weight"
-            aria-label="Gewicht Satz ${i + 1} in kg">
-          <input class="set-input" type="text" inputmode="numeric" placeholder="${lastReps(i)}"
+            aria-label="Gewicht ${name} in kg">
+          <input class="set-input" type="text" inputmode="numeric" placeholder="${repsHint}"
             value="${formatNumber(set.reps)}" data-index="${i}" data-field="reps"
-            aria-label="Wiederholungen Satz ${i + 1}">
+            aria-label="Wiederholungen ${name}">
         </div>
-      `
-    )
+      `;
+    })
     .join("");
+  const workingCount = workingNumber;
 
   // Die Timer-Zeile merkt sich in data-exercise, zu welcher Übung sie gehört
   container.innerHTML = `
@@ -498,9 +507,12 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
         <span>Wdh.</span>
       </div>
       ${rows}
+      <button class="warmup-toggle" data-action="${hasWarmup ? "remove-warmup" : "add-warmup"}">
+        ${hasWarmup ? "Aufwärmsatz entfernen" : "+ Aufwärmsatz"}
+      </button>
     </div>
     <div class="set-buttons">
-      <button class="pill-button" data-action="remove-set" ${sets.length <= 1 ? "disabled" : ""}>− Satz</button>
+      <button class="pill-button" data-action="remove-set" ${workingCount <= 1 ? "disabled" : ""}>− Satz</button>
       <button class="pill-button" data-action="add-set">+ Satz</button>
     </div>
     <div id="timer-card" class="timer-row" data-exercise="${exercise.id}" data-unit="${unit.id}">
@@ -1052,6 +1064,17 @@ function renderExerciseEdit(container, exerciseId) {
         </li>
       </ul>
 
+      <h2 class="section-title">Training</h2>
+      <ul class="card-list">
+        <li class="field-row">
+          <span class="field-label">Aufwärmsatz</span>
+          <span class="field-spacer"></span>
+          <button class="switch ${settings.warmup ? "on" : ""}" role="switch" aria-checked="${settings.warmup}"
+            data-action="toggle-exercise-warmup" aria-label="Aufwärmsatz"></button>
+        </li>
+      </ul>
+      <p class="settings-hint">Mit Aufwärmsatz beginnt jedes Training dieser Übung mit einem Satz „W“ bei etwa halbem Gewicht. Er zählt nicht für Volumen, Verlauf und Rekorde.</p>
+
       <h2 class="section-title">Notiz</h2>
       <textarea class="note-input" rows="3" maxlength="500" data-edit-field="note"
         placeholder="z.B. Sitz auf Stufe 4, enger Griff">${escapeHtml(settings.note)}</textarea>
@@ -1369,6 +1392,14 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Aufwärmsatz für diese Übung grundsätzlich an/aus (Seite "Übung bearbeiten")
+  if (action === "toggle-exercise-warmup") {
+    const id = parseHash().params[0];
+    Store.updateExercise(id, { warmup: !Store.getExerciseSettings(id).warmup });
+    renderCurrentView();
+    return;
+  }
+
   // Notiz auf der Übungsseite öffnen bzw. schließen
   if (action === "note-edit") {
     noteEditingId = exerciseId;
@@ -1460,6 +1491,14 @@ appMain.addEventListener("click", (event) => {
 
   // Sätze hinzufügen/entfernen. Auf der Übungsseite steht die id der
   // Übung an zweiter Stelle der Adresse: #start/<einheit>/<übung>
+  if (action === "add-warmup" || action === "remove-warmup") {
+    const currentExerciseId = parseHash().params[1];
+    if (action === "add-warmup") Store.addWarmup(currentExerciseId);
+    else Store.removeWarmup(currentExerciseId);
+    renderCurrentView();
+    return;
+  }
+
   if (action === "add-set" || action === "remove-set") {
     const currentExerciseId = parseHash().params[1];
     if (action === "add-set") {
@@ -1511,17 +1550,34 @@ appMain.addEventListener("input", (event) => {
   Store.updateSet(exerciseId, index, field, newValue);
 
   // Gewicht ist meist in allen Sätzen gleich: Den neuen Wert in die
-  // FOLGENDEN Sätze übernehmen, sofern dort noch nichts oder derselbe alte
-  // Wert stand. Bewusst geänderte Gewichte bleiben unangetastet.
+  // FOLGENDEN Arbeitssätze übernehmen, sofern dort noch nichts oder derselbe
+  // alte Wert stand. Bewusst geänderte Gewichte bleiben unangetastet.
+  // Der Aufwärmsatz wird nie übernommen und gibt nichts weiter.
   if (field !== "weight") return;
-  Store.getSets(exerciseId).forEach((set, i) => {
-    if (i <= index) return;
+  const sets = Store.getSets(exerciseId);
+  if (sets[index].warmup) return;
+  sets.forEach((set, i) => {
+    if (i <= index || set.warmup) return;
     if (set.weight === null || set.weight === oldValue) {
       Store.updateSet(exerciseId, i, "weight", newValue);
       const other = document.querySelector(`.set-input[data-index="${i}"][data-field="weight"]`);
       if (other) other.value = formatNumber(newValue);
     }
   });
+
+  // Ändert sich das Gewicht des ERSTEN Arbeitssatzes, zieht der Aufwärmsatz
+  // mit, solange er noch auf dem alten Vorschlag (oder leer) steht
+  const warmupIndex = sets.findIndex((set) => set.warmup);
+  const firstWorkingIndex = sets.findIndex((set) => !set.warmup);
+  if (warmupIndex !== -1 && index === firstWorkingIndex) {
+    const warmup = sets[warmupIndex];
+    if (warmup.weight === null || warmup.weight === warmupWeightFor(oldValue)) {
+      const suggestion = warmupWeightFor(newValue);
+      Store.updateSet(exerciseId, warmupIndex, "weight", suggestion);
+      const warmupInput = document.querySelector(`.set-input[data-index="${warmupIndex}"][data-field="weight"]`);
+      if (warmupInput) warmupInput.value = formatNumber(suggestion);
+    }
+  }
 });
 
 // Felder der Seite "Übung bearbeiten" und das Notizfeld im Training

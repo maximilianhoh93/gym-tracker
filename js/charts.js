@@ -63,12 +63,15 @@ function renderTodayWidget(workouts) {
   const entries = [];
   workouts
     .filter((w) => new Date(w.date).toDateString() === today)
-    .forEach((w) => w.exercises.forEach((e) => e.done && !e.skipped && entries.push(e)));
+    .forEach((w) =>
+      w.exercises.forEach((e) => e.done && !e.skipped && entries.push({ exerciseId: e.exerciseId, sets: workingSets(e.sets) }))
+    );
   const current = Store.getCurrentWorkout();
   if (current && new Date(current.startedAt).toDateString() === today) {
     Object.entries(current.exercises).forEach(([exerciseId, e]) => {
       // Nur Sätze mit Wiederholungen; ein Gewicht allein ist nur vorbelegt
-      if (e.done && !e.skipped) entries.push({ exerciseId, sets: e.sets.filter((s) => s.reps !== null) });
+      // Nur Arbeitssätze mit Wiederholungen; ein Gewicht allein ist nur vorbelegt
+      if (e.done && !e.skipped) entries.push({ exerciseId, sets: workingSets(e.sets).filter((s) => s.reps !== null) });
     });
   }
 
@@ -92,7 +95,7 @@ function renderTodayWidget(workouts) {
   const beforeTotal = before
     ? before.exercises
         .filter((e) => e.done && !e.skipped)
-        .reduce((sum, e) => sum + e.sets.reduce((s, set) => s + (set.weight || 0) * set.reps, 0), 0)
+        .reduce((sum, e) => sum + workingSets(e.sets).reduce((s, set) => s + (set.weight || 0) * set.reps, 0), 0)
     : null;
 
   return `
@@ -358,7 +361,8 @@ function renderVolumeWidget(workouts) {
         if (!entry.done || entry.skipped) return;
         const exercise = Store.getExercise(entry.exerciseId);
         if (!exercise) return; // Übung wurde inzwischen gelöscht
-        counts[exercise.muscleGroupId] = (counts[exercise.muscleGroupId] || 0) + entry.sets.length;
+        // Aufwärmsätze zählen nicht als Trainingssätze
+        counts[exercise.muscleGroupId] = (counts[exercise.muscleGroupId] || 0) + workingSets(entry.sets).length;
       });
     });
 
