@@ -545,66 +545,67 @@ body {
   background: var(--orange);
 }
 
-/* ===== Die "Insel" oben (nachgebaute Dynamic Island) ===== */
+/* ===== Timer-Widget oben links ===== */
+/* Kompakt ein kleiner schwarzer Kreis in der Ecke, aufgeklappt eine
+   breite Ansicht. Es ist dasselbe Element; beim Aufklappen ändern sich nur
+   Breite, Höhe und Rundung, das sieht aus wie ein "Aufziehen". */
 .island {
   position: fixed;
-  /* Mittig oben. Auf iPhones mit Dynamic Island sitzt sie später (als
-     installierte App) genau auf Höhe der echten Insel. clamp(min, wert, max)
-     hält den Abstand zwischen 8 und 11 Pixeln. */
-  top: clamp(8px, calc(env(safe-area-inset-top) - 48px), 11px);
-  left: 50%;
-  transform: translateX(-50%);
+  /* Unter der Statusleiste bzw. Notch, oben links in der Ecke */
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 12px;
   z-index: 50;
-  width: 200px;
-  height: 37px;
+  width: 44px;
+  height: 44px;
   overflow: hidden;
-  border-radius: 999px;
-  background: #000000; /* Immer schwarz, auch im hellen Modus, wie bei Apple */
+  border-radius: 22px;
+  background: #000000; /* Immer schwarz, auch im hellen Modus */
   color: #ffffff;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  /* Weiches "Aufziehen" beim Auf- und Zuklappen */
   transition:
-    width 0.35s cubic-bezier(0.3, 1.4, 0.5, 1),
-    height 0.35s cubic-bezier(0.3, 1.4, 0.5, 1),
+    width 0.35s cubic-bezier(0.3, 1.3, 0.5, 1),
+    height 0.35s cubic-bezier(0.3, 1.3, 0.5, 1),
     border-radius 0.35s;
 }
 
 /* Aufgeklappt: fast so breit wie der Bildschirm */
 .island.expanded {
-  width: min(calc(100% - 16px), 400px);
+  width: min(calc(100% - 24px), 400px);
   height: 84px;
   border-radius: 42px;
 }
 
-/* Aufpoppen beim ersten Erscheinen: kurz wachsen, leicht nachfedern */
+/* Aufpoppen beim ersten Erscheinen: aus dem Nichts wachsen, leicht nachfedern */
 .island.pop {
   animation: island-pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
 }
 
 @keyframes island-pop {
   from {
-    transform: translateX(-50%) scale(0.4);
+    transform: scale(0.3);
     opacity: 0;
   }
   to {
-    transform: translateX(-50%) scale(1);
+    transform: scale(1);
     opacity: 1;
   }
 }
 
-/* Kompakt: kleiner Ring links, Zeit rechts. In der Mitte bliebe auf dem
-   iPhone Platz für die Kamera der echten Insel. */
+/* Solange der Kreis sichtbar ist, rückt der Zurück-Link nach rechts */
+body.has-island .back-link {
+  margin-left: 48px;
+}
+
+/* Kompakt: nur der Ring, mittig im Kreis */
 .island-compact {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 37px;
-  padding: 0 14px 0 9px;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: none;
   background: none;
-  color: inherit;
-  font: inherit;
   cursor: pointer;
 }
 
@@ -613,8 +614,8 @@ body {
 }
 
 .mini-ring {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   transform: rotate(-90deg); /* Fortschritt beginnt oben */
 }
 

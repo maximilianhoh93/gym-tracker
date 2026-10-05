@@ -276,21 +276,22 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
 // ===== Pausentimer: Anzeige =====
 // Die Logik steckt in js/timer.js (RestTimer). Hier wird nur angezeigt:
 // 1. Auf der Übungsseite eine kleine Karte: Pausenzeit einstellen und starten.
-// 2. Solange der Timer aktiv ist, schwebt oben eine schwarze "Insel" im
-//    Stil der Dynamic Island des iPhones. Antippen klappt sie auf.
-// Hinweis: Die ECHTE Dynamic Island können nur Apps aus dem App Store
-// benutzen. Wir bauen sie innerhalb der Web-App nach.
+// 2. Solange der Timer aktiv ist, sitzt oben links ein kleiner schwarzer
+//    Kreis mit einem orangen Ring, der wie eine Ladeanzeige abläuft.
+//    Antippen klappt ihn zu einer Ansicht mit Zeit und Knöpfen auf.
+//    (Im Code heißt dieses Widget "island", also "Insel".)
+//    Oben links, damit die echte Dynamic Island des iPhones frei bleibt.
 
 // Schnellwahl-Dauern in Sekunden
 const TIMER_PRESETS = [60, 90, 120, 180];
 
-// Kleiner Fortschrittsring in der Insel. Umfang = 2 · π · Radius.
+// Fortschrittsring im Kreis. Umfang = 2 · π · Radius.
 // Eine Linie mit Strichlänge = Umfang, die um einen Teil davon
 // "verschoben" wird, erscheint nur teilweise (stroke-dashoffset).
 const MINI_RING_RADIUS = 9;
 const MINI_RING_CIRCUMFERENCE = 2 * Math.PI * MINI_RING_RADIUS;
 
-// Ist die Insel gerade aufgeklappt?
+// Ist das Widget gerade aufgeklappt?
 let islandExpanded = false;
 
 // ----- Karte auf der Übungsseite -----
@@ -361,6 +362,7 @@ function renderIsland() {
   if (status === "idle") {
     island.hidden = true;
     islandExpanded = false;
+    document.body.classList.remove("has-island");
     return;
   }
 
@@ -371,6 +373,8 @@ function renderIsland() {
     void island.offsetWidth; // Trick: zwingt den Browser, die Animation neu zu starten
     island.classList.add("pop");
   }
+  // Damit macht das CSS oben links Platz (der Zurück-Link rückt nach rechts)
+  document.body.classList.add("has-island");
 
   island.classList.toggle("expanded", islandExpanded);
   island.classList.toggle("done", status === "done");
@@ -394,7 +398,6 @@ function renderIsland() {
           stroke-dasharray="${MINI_RING_CIRCUMFERENCE}"
           stroke-dashoffset="${MINI_RING_CIRCUMFERENCE * (1 - RestTimer.getProgress())}"></circle>
       </svg>
-      <span class="island-time">${status === "done" ? "0:00" : time}</span>
     </button>
 
     <div class="island-expanded">

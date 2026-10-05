@@ -47,8 +47,8 @@ Eine Web-App (PWA) zum Erfassen von Krafttraining, gedacht für die Nutzung auf 
 - Im Training öffnet ein Tipp auf eine Übung ihre eigene Seite. Dort gibt es den Pausentimer.
 - Der Timer wird manuell gestartet. Standardwert: 2 Minuten, die Dauer ist änderbar (Schnellwahl 1:00/1:30/2:00/3:00, ±15 s).
 - Jede Übung merkt sich ihre zuletzt eingestellte Pausenzeit.
-- Beim Start poppt oben mittig ein rundliches schwarzes Widget auf (Optik wie die Dynamic Island): kompakt mit kleinem Ring und Restzeit, sichtbar auf allen Seiten.
-- Antippen klappt es auf (Übungsname, große Zeit, Anhalten/Fortsetzen, Abbrechen). Ein Tipp daneben klappt es zu.
+- Beim Start poppt oben links in der Ecke ein kleiner schwarzer Kreis auf, mit einem orangen Ring, der wie eine Ladeanzeige abläuft. Sichtbar auf allen Seiten. Bewusst nicht oben mittig, damit die echte Dynamic Island des iPhones frei bleibt.
+- Antippen klappt ihn zu einer Ansicht auf (Übungsname, große Zeit, Anhalten/Fortsetzen, Abbrechen). Ein Tipp daneben klappt sie zu.
 - Am Ende ertönt ein kurzer Ton, das Widget klappt auf und zeigt „Pause vorbei“ (Nochmal / Fertig).
 - Die Zeit über Zeitstempel berechnen (nicht über einen reinen Zähler), damit der Timer auch korrekt bleibt, wenn die App kurz im Hintergrund war.
 - Die verwendete Pausenzeit wird mit der Übung gespeichert.
