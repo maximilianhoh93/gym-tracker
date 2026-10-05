@@ -33,6 +33,13 @@ const DEFAULT_REST_SECONDS = 120;
 // Standard-Anzahl der Sätze pro Übung
 const DEFAULT_SET_COUNT = 2;
 
+// Standard-Wiederholungsbereich für die doppelte Progression (siehe CLAUDE.md)
+const DEFAULT_REP_MIN = 8;
+const DEFAULT_REP_MAX = 12;
+
+// Muskelgruppen, bei denen die Standard-Steigerung 5 kg statt 2,5 kg ist
+const LOWER_BODY_GROUPS = ["beine", "gesaess", "waden"];
+
 // Die Muskelgruppen, nach denen der Pool sortiert ist (in dieser Reihenfolge)
 const MUSCLE_GROUPS = [
   { id: "brust", name: "Brust" },
@@ -266,6 +273,38 @@ const Store = {
     exercises.push(exercise);
     save();
     return structuredClone(exercise);
+  },
+
+  // Übung ändern. "changes" enthält nur die Felder, die sich ändern sollen,
+  // z.B. { name: "Bankdrücken eng" } oder { note: "Sitz auf Stufe 4" }.
+  // Gibt false zurück, wenn der neue Name schon vergeben ist.
+  updateExercise(exerciseId, changes) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (!exercise) return false;
+    if (changes.name !== undefined) {
+      const taken = exercises.some(
+        (ex) => ex.id !== exerciseId && ex.name.toLowerCase() === changes.name.toLowerCase()
+      );
+      if (taken) return false;
+    }
+    // Object.assign kopiert alle Felder aus "changes" in die Übung
+    Object.assign(exercise, changes);
+    save();
+    return true;
+  },
+
+  // Einstellungen einer Übung. Was (noch) nicht gesetzt ist, bekommt den
+  // Standardwert. So brauchen ältere Daten keine Umwandlung.
+  getExerciseSettings(exerciseId) {
+    const exercise = exercises.find((ex) => ex.id === exerciseId) || {};
+    const lowerBody = LOWER_BODY_GROUPS.includes(exercise.muscleGroupId);
+    return {
+      note: exercise.note || "",
+      warmup: exercise.warmup !== false, // Standard: mit Aufwärmsatz
+      repMin: exercise.repMin || DEFAULT_REP_MIN,
+      repMax: exercise.repMax || DEFAULT_REP_MAX,
+      increment: exercise.increment || (lowerBody ? 5 : 2.5),
+    };
   },
 
   // Die Pausenzeit, die sich eine Übung gemerkt hat (in Sekunden)

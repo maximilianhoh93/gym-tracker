@@ -36,8 +36,16 @@ function parseHash() {
   return { viewName, params };
 }
 
+// Die Adresse, von der man gerade kam. Seiten, die man von mehreren Stellen
+// aus öffnen kann (z.B. "Übung bearbeiten"), führen mit "Zurück" dorthin.
+let previousHash = "";
+let currentHash = location.hash;
+
 // Wird bei jedem Wechsel der Adresse aufgerufen
 function route() {
+  previousHash = currentHash;
+  currentHash = location.hash;
+  noteEditingId = null; // Ein offenes Notizfeld schließt beim Seitenwechsel
   const { viewName } = parseHash();
 
   // Alle Ansichten durchgehen: nur die passende bleibt sichtbar
@@ -69,7 +77,7 @@ function renderCurrentView() {
   } else if (viewName === "plaene") {
     renderPlaene(params[0], params[1], params[2]);
   } else if (viewName === "uebungen") {
-    renderUebungen();
+    renderUebungen(params[0]);
   } else if (viewName === "einstellungen") {
     renderSettings();
   }
@@ -481,6 +489,7 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
   // Die Timer-Zeile merkt sich in data-exercise, zu welcher Übung sie gehört
   container.innerHTML = `
     ${intro}
+    <div id="note-area">${renderNoteArea(exercise.id)}</div>
     ${lastLine}
     <div class="sets-card">
       <div class="set-row set-header">
@@ -505,6 +514,42 @@ function renderExerciseView(container, plan, unitId, exerciseId) {
       ? ""
       : `<button class="text-button" data-action="toggle-skip" data-id="${exercise.id}">Heute überspringen</button>`}
   `;
+}
+
+// ----- Notiz auf der Übungsseite -----
+// Kompakt: eine Zeile mit der ersten Zeile der Notiz (oder "Notiz
+// hinzufügen"). Ein Tipp öffnet ein Textfeld zum Bearbeiten.
+
+// Stift-Symbol für die Notiz-Zeile
+const PENCIL_ICON = `<svg class="row-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>`;
+
+// Bei welcher Übung das Notiz-Feld gerade offen ist (sonst null)
+let noteEditingId = null;
+
+function renderNoteArea(exerciseId) {
+  const note = Store.getExerciseSettings(exerciseId).note;
+  if (noteEditingId === exerciseId) {
+    return `
+      <div class="edit-form note-box" data-exercise="${exerciseId}">
+        <textarea class="note-input" rows="3" maxlength="500" data-edit-field="note"
+          placeholder="z.B. Sitz auf Stufe 4, enger Griff">${escapeHtml(note)}</textarea>
+        <button class="text-button" data-action="note-done">Fertig</button>
+      </div>`;
+  }
+  // Nur die erste Zeile zeigen; der Rest erscheint beim Bearbeiten
+  const firstLine = note.split("\n")[0];
+  return `
+    <button class="note-row ${note ? "has-note" : ""}" data-action="note-edit" data-id="${exerciseId}">
+      ${PENCIL_ICON}
+      <span class="note-text">${note ? escapeHtml(firstLine) : "Notiz hinzufügen"}</span>
+    </button>`;
+}
+
+// Nur den Notiz-Bereich neu zeichnen (die Sätze bleiben, wie sie sind)
+function refreshNoteArea() {
+  const area = document.getElementById("note-area");
+  const exerciseId = parseHash().params[1];
+  if (area) area.innerHTML = renderNoteArea(exerciseId);
 }
 
 // Welche Kennzahl der Verlauf zeigt: "weight" (Gewicht) oder "volume".
@@ -929,8 +974,12 @@ function renderExercisePicker(plan, unit) {
 }
 
 // ===== Ansicht "Übungen" (der Pool) =====
-function renderUebungen() {
+function renderUebungen(exerciseId) {
   const container = document.getElementById("view-uebungen");
+  if (exerciseId) {
+    renderExerciseEdit(container, exerciseId);
+    return;
+  }
   const groups = groupByMuscle(Store.getExercises());
 
   const sections = groups
@@ -945,10 +994,10 @@ function renderUebungen() {
                 usage === 0 ? "In keiner Einheit" : usage === 1 ? "In 1 Einheit" : `In ${usage} Einheiten`;
               return `
                 <li class="exercise-card">
-                  <span class="exercise-info">
+                  <a class="card-main" href="#uebungen/${exercise.id}">
                     <span class="exercise-name">${escapeHtml(exercise.name)}</span>
                     <span class="exercise-meta">${usageText}</span>
-                  </span>
+                  </a>
                   <button class="icon-button danger" data-action="delete-exercise" data-id="${exercise.id}"
                     aria-label="Übung löschen">${XMARK_ICON}</button>
                 </li>
@@ -961,10 +1010,82 @@ function renderUebungen() {
     .join("");
 
   container.innerHTML = `
-    <p class="intro">Lege jede Übung hier einmal an. In deinen Plänen wählst du sie dann pro Einheit aus.</p>
+    <p class="intro">Lege jede Übung hier einmal an. In deinen Plänen wählst du sie dann pro Einheit aus.
+      Tippe auf eine Übung, um sie zu bearbeiten.</p>
     ${renderExerciseForm()}
     ${groups.length === 0 ? `<p class="placeholder">Noch keine Übungen im Pool.</p>` : sections}
   `;
+}
+
+// ===== Seite "Übung bearbeiten" (#uebungen/<id>) =====
+// Alles, was zu einer Übung gehört, an einem Ort. Die Felder speichern
+// sofort beim Ändern; einen "Speichern"-Knopf braucht es nicht (wie bei iOS).
+// Die Felder tragen data-edit-field mit dem Namen des Werts, den sie ändern.
+function renderExerciseEdit(container, exerciseId) {
+  const exercise = Store.getExercise(exerciseId);
+  if (!exercise) {
+    location.hash = "uebungen";
+    return;
+  }
+  const settings = Store.getExerciseSettings(exerciseId);
+
+  // Zurück dorthin, woher man kam (z.B. ins Training), sonst zum Pool
+  const fromWorkout = previousHash.startsWith("#start/");
+  setHeader(exercise.name, fromWorkout ? previousHash : "#uebungen", fromWorkout ? "Training" : "Übungen");
+
+  const options = Store.getMuscleGroups()
+    .map((g) => `<option value="${g.id}" ${g.id === exercise.muscleGroupId ? "selected" : ""}>${escapeHtml(g.name)}</option>`)
+    .join("");
+
+  container.innerHTML = `
+    <div class="edit-form" data-exercise="${exercise.id}">
+      <h2 class="section-title">Allgemein</h2>
+      <ul class="card-list">
+        <li class="field-row">
+          <label class="field-label" for="edit-name">Name</label>
+          <input id="edit-name" class="field-input" type="text" value="${escapeHtml(exercise.name)}"
+            maxlength="60" autocomplete="off" data-edit-field="name">
+        </li>
+        <li class="field-row">
+          <label class="field-label" for="edit-group">Muskelgruppe</label>
+          <select id="edit-group" class="field-input field-select" data-edit-field="muscleGroupId">${options}</select>
+        </li>
+      </ul>
+
+      <h2 class="section-title">Notiz</h2>
+      <textarea class="note-input" rows="3" maxlength="500" data-edit-field="note"
+        placeholder="z.B. Sitz auf Stufe 4, enger Griff">${escapeHtml(settings.note)}</textarea>
+      <p class="settings-hint">Die Notiz steht bei jedem Training dieser Übung über den Sätzen.</p>
+    </div>
+  `;
+}
+
+// Änderungen auf der Seite "Übung bearbeiten" speichern.
+// "input" feuert bei jedem Tastendruck (für die Notiz), "change" erst beim
+// Verlassen des Felds bzw. bei der Auswahl (für Name und Muskelgruppe).
+function handleExerciseEdit(event) {
+  const field = event.target.closest("[data-edit-field]");
+  if (!field) return;
+  const exerciseId = field.closest(".edit-form").dataset.exercise;
+  const key = field.dataset.editField;
+
+  if (key === "note" && event.type === "input") {
+    Store.updateExercise(exerciseId, { note: field.value });
+  } else if (key === "muscleGroupId" && event.type === "change") {
+    Store.updateExercise(exerciseId, { muscleGroupId: field.value });
+  } else if (key === "name" && event.type === "change") {
+    const name = field.value.trim();
+    const oldName = Store.getExercise(exerciseId).name;
+    if (!name) {
+      field.value = oldName; // Leerer Name ist nicht erlaubt: zurücksetzen
+    } else if (!Store.updateExercise(exerciseId, { name: name })) {
+      alert(`„${name}“ gibt es schon in deinem Übungs-Pool.`);
+      field.value = oldName;
+    } else {
+      setHeader(name, document.getElementById("back-link").getAttribute("href"),
+        document.getElementById("back-label").textContent);
+    }
+  }
 }
 
 // ===== Ansicht "Einstellungen" =====
@@ -1248,6 +1369,19 @@ appMain.addEventListener("click", (event) => {
     return;
   }
 
+  // Notiz auf der Übungsseite öffnen bzw. schließen
+  if (action === "note-edit") {
+    noteEditingId = exerciseId;
+    refreshNoteArea();
+    document.querySelector("#note-area textarea").focus();
+    return;
+  }
+  if (action === "note-done") {
+    noteEditingId = null;
+    refreshNoteArea();
+    return;
+  }
+
   // Sicherung
   if (action === "backup-export") {
     exportBackup();
@@ -1389,6 +1523,10 @@ appMain.addEventListener("input", (event) => {
     }
   });
 });
+
+// Felder der Seite "Übung bearbeiten" und das Notizfeld im Training
+appMain.addEventListener("input", handleExerciseEdit);
+appMain.addEventListener("change", handleExerciseEdit);
 
 // ===== Drag and Drop zum Sortieren =====
 // Wir benutzen "Pointer Events": Die funktionieren gleich für Finger,

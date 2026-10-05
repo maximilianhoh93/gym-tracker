@@ -157,8 +157,8 @@ Lokal testen: `python3 -m http.server 8000` im Projektordner, dann http://localh
 ## Nächste Funktionen (beschlossen, in dieser Reihenfolge)
 
 1. ✅ **Sicherung** (erledigt): Export aller Daten als Datei nach iCloud Drive (fester Name `gym-tracker-backup.json`, Teilen-Menü von iOS), Erinnerung nach 5 Trainings oder spätestens 1 Woche, Import zum Wiederherstellen. Anzeige „Letzte Sicherung vor X Tagen“ in den Einstellungen.
-2. **Übungen bearbeiten**: Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
-3. **Notiz pro Übung**: kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
+2. ✅ **Übungen bearbeiten** (erledigt, Seite `#uebungen/<id>`): Im Pool eine Übung antippen → Name und Muskelgruppe ändern.
+3. ✅ **Notiz pro Übung** (erledigt): kompakt, eine Zeile „📝 Notiz hinzufügen“ auf der Übungsseite; vorhandene Notiz zeigt ihre erste Zeile, Tipp zum Bearbeiten. Gilt dauerhaft für die Übung (z.B. „Sitz auf Stufe 4“).
 4. **Aufwärmsatz**: Jede Übung startet standardmäßig mit einem Aufwärmsatz „W“ vor den Arbeitssätzen, entfernbar (die Übung merkt sich das). Vorgeschlagenes Gewicht: etwa 50 % des Arbeitsgewichts, auf eine sinnvolle Stufe gerundet. Aufwärmsätze zählen nicht für Volumen, Rekorde, Vorschläge, „Letztes Mal“.
 5. **Progressive Overload (doppelte Progression)**: Pro Übung Wiederholungsbereich (Standard 8–12) und Steigerung (Standard 2,5 kg; Beine, Gesäß, Waden 5 kg), beides änderbar. Vorschlag auf der Übungsseite aus dem letzten Training:
    - Alle Arbeitssätze am oberen Ende → „Vorschlag: +2,5 kg“ mit Knopf zum Übernehmen, Ziel wieder unteres Ende.
